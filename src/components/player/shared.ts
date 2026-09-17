@@ -1,4 +1,4 @@
-import type { Envelope, GameState, Player, PlayerAction, PlayerSecret, TeamId } from '@/game/types';
+import type { GameState, Player, PlayerAction, PlayerSecret, TeamId } from '@/game/types';
 
 /** Props comuns a todas as telas de rodada no celular. */
 export type RoundProps = {
@@ -7,7 +7,6 @@ export type RoundProps = {
   team: TeamId;
   secret: PlayerSecret;
   act: (action: PlayerAction) => void;
-  send: (env: Envelope) => void;
 };
 
 /** Mesmo critério do engine: índice circular no baralho. */

@@ -1,25 +1,28 @@
 export type TeamId = 'red' | 'blue';
 export type DeckMode = 'familia' | 'sem-filtro';
-export type RoundKind = 'desenha' | 'tabu' | 'mentiroso' | 'leilao' | 'relampago';
+export type RoundKind = 'mimica' | 'tabu' | 'mentiroso' | 'leilao' | 'relampago';
 export type Phase = 'lobby' | 'round-intro' | 'round-play' | 'round-result' | 'game-over';
 
 export type Player = { id: string; name: string; team: TeamId | null; lastSeen: number };
 export type Scores = Record<TeamId, number>;
 
 /** Contadores separados por time (os campos agregados continuam existindo). */
-export type TurnTally = { scored: number; penalties: number };
+export type TurnTally = { scored: number; penalties: number; skipped: number };
 
-export type DesenhaState = {
-  kind: 'desenha';
+export type MimicaState = {
+  kind: 'mimica';
   activeTeam: TeamId;
-  drawerId: string | null;
+  /** quem faz a mímica neste turno */
+  performerId: string | null;
   wordIndex: number;
   deadline: number;
   solvedWords: string[];
   guesses: { playerId: string; text: string; correct: boolean; at: number }[];
   turnIndex: number; // 0 = 1o time, 1 = 2o time
-  /** acertos por time (penalties fica sempre 0 no desenha) */
+  /** acertos e pulos por time (penalties fica sempre 0 na mímica) */
   byTeam: Record<TeamId, TurnTally>;
+  /** instante do último pulo aceito (toque duplo no botão não queima duas palavras) */
+  lastSkipAt: number | null;
 };
 
 export type TabuState = {
@@ -83,7 +86,7 @@ export type RelampagoState = {
   revealed: boolean;
 };
 
-export type RoundState = DesenhaState | TabuState | MentirosoState | LeilaoState | RelampagoState;
+export type RoundState = MimicaState | TabuState | MentirosoState | LeilaoState | RelampagoState;
 
 export type GameState = {
   code: string;
@@ -102,7 +105,7 @@ export type GameState = {
 };
 
 export type PlayerSecret =
-  | { kind: 'desenha-word'; word: string }
+  | { kind: 'mimica-word'; word: string }
   | { kind: 'tabu-card'; word: string; forbidden: string[]; role: 'clue-giver' | 'referee' }
   | { kind: 'mentiroso-truth'; truth: string }
   | { kind: 'leilao-bid'; amount: number | null }
@@ -115,6 +118,7 @@ export type PlayerAction =
   | { type: 'guess'; text: string }
   | { type: 'tabu-penalty' }
   | { type: 'tabu-skip' }
+  | { type: 'mimica-skip' }
   | { type: 'submit-lie'; text: string }
   | { type: 'vote'; optionId: string }
   | { type: 'bid'; amount: number }
@@ -133,7 +137,4 @@ export type Envelope =
   | { t: 'state'; state: GameState }
   | { t: 'act'; playerId: string; action: PlayerAction }
   /** segredo entregue só ao destinatário (o relay ws roteia por playerId) */
-  | { t: 'secret'; playerId: string; secret: PlayerSecret }
-  /** `key` = palavra/turno em que o traço nasceu; a TV descarta traço de palavra que já passou */
-  | { t: 'stroke'; playerId: string; points: number[]; color: string; end: boolean; key?: string }
-  | { t: 'clear-canvas'; playerId: string };
+  | { t: 'secret'; playerId: string; secret: PlayerSecret };

@@ -4,7 +4,7 @@ Jogo de festa para a sala de casa: um **torneio de 5 rodadas** entre dois times 
 A **TV** mostra o jogo e é a autoridade da partida; cada pessoa joga pelo **celular**.
 São **2 baralhos**: _Família_ e _Sem filtro_ — escolha no lobby.
 
-Rodadas: Desenha · Tabu de Boteco · Mentiroso · Leilão · Relâmpago (a última vale triplo).
+Rodadas: Mímica · Tabu de Boteco · Mentiroso · Leilão · Relâmpago (a última vale triplo).
 Precisa de 4+ pessoas e os dois times preenchidos.
 
 ## Rodar em casa

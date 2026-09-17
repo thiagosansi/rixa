@@ -20,11 +20,12 @@ import {
   MENTIROSO_TOTAL_QUESTIONS,
   POINTS,
   RELAMPAGO_TOTAL_QUESTIONS,
+  MIMICA_SKIP_DEBOUNCE_MS,
   TABU_PENALTY_DEBOUNCE_MS,
 } from './rounds';
 
 const DECK: Deck = {
-  desenha: ['gato', 'casa', 'sol', 'bola', 'pato', 'chuva', 'navio'],
+  mimica: ['gato', 'casa', 'sol', 'bola', 'pato', 'chuva', 'navio'],
   tabu: ['praia', 'pizza', 'futebol', 'violao', 'onibus', 'escola', 'cinema'].map((word) => ({
     word,
     forbidden: ['a', 'b', 'c'],
@@ -88,7 +89,7 @@ function roundOf<K extends RoundState['kind']>(s: GameState, kind: K): Extract<R
 
 function secretWord(s: GameState, playerId: string | null): string {
   const secret = playerId ? s.secrets[playerId] : undefined;
-  assert.ok(secret && (secret.kind === 'desenha-word' || secret.kind === 'tabu-card'));
+  assert.ok(secret && (secret.kind === 'mimica-word' || secret.kind === 'tabu-card'));
   return secret.word;
 }
 
@@ -129,26 +130,94 @@ describe('lobby', () => {
 });
 
 /* ------------------------------------------------------------------ */
-/* desenha / tabu                                                      */
+/* mímica / tabu                                                       */
 /* ------------------------------------------------------------------ */
 
-describe('desenha e tabu', () => {
+describe('mímica e tabu', () => {
   it('contadores por time não misturam os dois turnos', () => {
     let s = playAt(table(2, 2), 0);
-    let r = roundOf(s, 'desenha');
-    const guesser = r.drawerId === 'r1' ? 'r2' : 'r1';
-    s = act(s, guesser, { type: 'guess', text: secretWord(s, r.drawerId) });
-    s = act(s, guesser, { type: 'guess', text: secretWord(s, roundOf(s, 'desenha').drawerId) });
+    let r = roundOf(s, 'mimica');
+    const guesser = r.performerId === 'r1' ? 'r2' : 'r1';
+    s = act(s, guesser, { type: 'guess', text: secretWord(s, r.performerId) });
+    s = act(s, guesser, { type: 'guess', text: secretWord(s, roundOf(s, 'mimica').performerId) });
     s = next(s); // vez do azul
-    r = roundOf(s, 'desenha');
+    r = roundOf(s, 'mimica');
     assert.equal(r.activeTeam, 'blue');
-    const blueGuesser = r.drawerId === 'b1' ? 'b2' : 'b1';
-    s = act(s, blueGuesser, { type: 'guess', text: secretWord(s, r.drawerId) });
-    r = roundOf(s, 'desenha');
-    assert.deepEqual(r.byTeam.red, { scored: 2, penalties: 0 });
-    assert.deepEqual(r.byTeam.blue, { scored: 1, penalties: 0 });
+    const blueGuesser = r.performerId === 'b1' ? 'b2' : 'b1';
+    s = act(s, blueGuesser, { type: 'guess', text: secretWord(s, r.performerId) });
+    r = roundOf(s, 'mimica');
+    assert.deepEqual(r.byTeam.red, { scored: 2, penalties: 0, skipped: 0 });
+    assert.deepEqual(r.byTeam.blue, { scored: 1, penalties: 0, skipped: 0 });
     assert.equal(r.solvedWords.length, 3, 'o agregado continua existindo');
-    assert.deepEqual(s.scores, { red: 2 * POINTS.desenhaCorrect, blue: POINTS.desenhaCorrect });
+    assert.deepEqual(s.scores, { red: 2 * POINTS.mimicaCorrect, blue: POINTS.mimicaCorrect });
+  });
+
+  it('mímica: quem faz a mímica não chuta; adversário também não', () => {
+    const s = playAt(table(2, 2), 0);
+    const r = roundOf(s, 'mimica');
+    assert.equal(r.activeTeam, 'red');
+    assert.ok(r.performerId);
+    const word = secretWord(s, r.performerId);
+    assert.equal(act(s, r.performerId, { type: 'guess', text: word }), s, 'performer recusado');
+    assert.equal(act(s, 'b1', { type: 'guess', text: word }), s, 'adversário recusado');
+    assert.equal(s.scores.red, 0);
+  });
+
+  it('mímica: pular troca a palavra sem penalidade e conta em byTeam', () => {
+    let s = playAt(table(2, 2), 0);
+    const before = roundOf(s, 'mimica');
+    const performer = before.performerId!;
+    const guesser = performer === 'r1' ? 'r2' : 'r1';
+    const oldWord = secretWord(s, performer);
+
+    s = act(s, performer, { type: 'mimica-skip' });
+    let r = roundOf(s, 'mimica');
+    assert.equal(r.wordIndex, before.wordIndex + 1);
+    assert.notEqual(secretWord(s, performer), oldWord, 'palavra nova');
+    assert.equal(r.lastSkipAt, clock);
+    assert.deepEqual(r.byTeam.red, { scored: 0, penalties: 0, skipped: 1 });
+    assert.deepEqual(s.scores, { red: 0, blue: 0 }, 'sem penalidade');
+    assert.equal(r.solvedWords.length, 0);
+
+    // a palavra pulada não vale mais; a nova vale
+    s = act(s, guesser, { type: 'guess', text: oldWord });
+    r = roundOf(s, 'mimica');
+    assert.equal(r.guesses.at(-1)?.correct, false, 'palavra pulada não vale');
+    assert.equal(s.scores.red, 0);
+    s = act(s, guesser, { type: 'guess', text: secretWord(s, performer) });
+    r = roundOf(s, 'mimica');
+    assert.deepEqual(r.byTeam.red, { scored: 1, penalties: 0, skipped: 1 });
+    assert.equal(s.scores.red, POINTS.mimicaCorrect);
+  });
+
+  it('mímica: pulo de quem não faz a mímica é ignorado', () => {
+    const s = playAt(table(2, 2), 0);
+    const r = roundOf(s, 'mimica');
+    const colleague = r.performerId === 'r1' ? 'r2' : 'r1';
+    assert.equal(act(s, colleague, { type: 'mimica-skip' }), s, 'colega');
+    assert.equal(act(s, 'b1', { type: 'mimica-skip' }), s, 'adversário');
+  });
+
+  it('mímica: pulo repetido em menos de 1s é ignorado', () => {
+    let s = playAt(table(2, 2), 0);
+    const performer = roundOf(s, 'mimica').performerId!;
+    const start = roundOf(s, 'mimica').wordIndex;
+
+    s = act(s, performer, { type: 'mimica-skip' });
+    advance(300);
+    const again = act(s, performer, { type: 'mimica-skip' });
+    assert.equal(again, s, 'toque duplo');
+    assert.equal(roundOf(s, 'mimica').wordIndex, start + 1);
+
+    advance(MIMICA_SKIP_DEBOUNCE_MS);
+    s = act(s, performer, { type: 'mimica-skip' });
+    const r = roundOf(s, 'mimica');
+    assert.equal(r.wordIndex, start + 2);
+    assert.equal(r.byTeam.red.skipped, 2);
+
+    // o 2o time começa sem debounce herdado
+    s = next(s);
+    assert.equal(roundOf(s, 'mimica').lastSkipAt, null);
   });
 
   it('tabu: penalidade repetida em menos de 1500ms é ignorada', () => {
@@ -168,8 +237,8 @@ describe('desenha e tabu', () => {
     s = act(s, 'r2', { type: 'tabu-penalty' });
     r = roundOf(s, 'tabu');
     assert.equal(r.penalties, 2);
-    assert.deepEqual(r.byTeam.blue, { scored: 0, penalties: 2 });
-    assert.deepEqual(r.byTeam.red, { scored: 0, penalties: 0 });
+    assert.deepEqual(r.byTeam.blue, { scored: 0, penalties: 2, skipped: 0 });
+    assert.deepEqual(r.byTeam.red, { scored: 0, penalties: 0, skipped: 0 });
     assert.equal(s.scores.blue, 2 * POINTS.tabuPenalty);
 
     // quem está jogando não pode se multar
@@ -389,18 +458,24 @@ describe('torneio completo (3 x 4)', () => {
     let s = host(table(3, 4), { type: 'start-game' });
     const guessRight = (st: GameState): GameState => {
       const r = st.round;
-      assert.ok(r && (r.kind === 'desenha' || r.kind === 'tabu'));
-      const performer = r.kind === 'desenha' ? r.drawerId : r.clueGiverId;
+      assert.ok(r && (r.kind === 'mimica' || r.kind === 'tabu'));
+      const performer = r.kind === 'mimica' ? r.performerId : r.clueGiverId;
       const guesser = st.players.find((p) => p.team === r.activeTeam && p.id !== performer);
       assert.ok(guesser);
       return act(st, guesser.id, { type: 'guess', text: secretWord(st, performer) });
     };
 
-    /* R1 desenha — vermelho começa: 2 acertos; azul: 1 */
+    /* R1 mímica — vermelho começa: 2 acertos e 1 pulo (+1 no debounce); azul: 1 */
     s = next(s);
     s = guessRight(guessRight(s));
     s = act(s, 'r1', { type: 'guess', text: 'chute errado' });
     s = act(s, 'b1', { type: 'guess', text: 'não é a vez dele' });
+    const performer = roundOf(s, 'mimica').performerId!;
+    s = act(s, performer, { type: 'guess', text: secretWord(s, performer) }); // ignorado
+    s = act(s, performer, { type: 'mimica-skip' });
+    advance(200);
+    s = act(s, performer, { type: 'mimica-skip' }); // toque duplo: ignorado
+    assert.equal(roundOf(s, 'mimica').byTeam.red.skipped, 1);
     s = next(s);
     s = guessRight(s);
     s = next(s);

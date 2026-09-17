@@ -2,14 +2,14 @@ import type { DeckMode } from '@/game/types';
 import * as familiaModule from './familia';
 import * as semFiltroModule from './sem-filtro';
 
-export type DesenhaWord = string;
+export type MimicaWord = string;
 export type TabuCard = { word: string; forbidden: string[] };
 export type MentirosoQuestion = { question: string; truth: string };
 export type LeilaoCategory = { category: string; hint?: string };
 export type RelampagoQuestion = { text: string; options: string[]; answerIndex: number };
 
 export type Deck = {
-  desenha: DesenhaWord[];
+  mimica: MimicaWord[];
   tabu: TabuCard[];
   mentiroso: MentirosoQuestion[];
   leilao: LeilaoCategory[];
@@ -17,7 +17,7 @@ export type Deck = {
 };
 
 export const EMPTY_DECK: Deck = {
-  desenha: [],
+  mimica: [],
   tabu: [],
   mentiroso: [],
   leilao: [],
@@ -28,7 +28,7 @@ function isDeck(value: unknown): value is Deck {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
   return (
-    Array.isArray(v.desenha) &&
+    Array.isArray(v.mimica) &&
     Array.isArray(v.tabu) &&
     Array.isArray(v.mentiroso) &&
     Array.isArray(v.leilao) &&

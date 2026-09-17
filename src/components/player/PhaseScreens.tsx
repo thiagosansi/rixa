@@ -16,14 +16,14 @@ import { TEAM_LABEL, TEAM_TEXT } from './shared';
 /** O que EU vou fazer na rodada que está para começar. */
 function myRoleText(game: GameState, me: Player, team: TeamId): string {
   const kind = roundKindAt(game.roundIndex);
-  if (kind === 'desenha' || kind === 'tabu') {
+  if (kind === 'mimica' || kind === 'tabu') {
     const first = startingTeam(game.roundIndex);
     const performer = pickRotating(playersOfTeam(game.players, team), game.roundIndex);
-    const verb = kind === 'desenha' ? 'desenha' : 'dá as dicas';
+    const verb = kind === 'mimica' ? 'faz a mímica' : 'dá as dicas';
     const order = first === team ? 'Seu time começa.' : 'O outro time começa; o seu vai depois.';
     const rivalJob = kind === 'tabu' ? ' Na vez deles você é árbitro: botão PEGOU! na mão.' : '';
     if (performer?.id === me.id) {
-      return `VOCÊ ${verb} pelo seu time${kind === 'desenha' ? ' — no celular' : ' — em voz alta'}. ${order}${rivalJob}`;
+      return `VOCÊ ${verb} pelo seu time${kind === 'mimica' ? ' — a palavra aparece no seu celular' : ' — em voz alta'}. ${order}${rivalJob}`;
     }
     return `${performer?.name ?? 'Alguém'} ${verb} pelo seu time; você adivinha digitando aqui. ${order}${rivalJob}`;
   }

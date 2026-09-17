@@ -1,7 +1,7 @@
 'use client';
 
 import type { RoundProps } from './shared';
-import { DesenhaRound } from './DesenhaRound';
+import { MimicaRound } from './MimicaRound';
 import { TabuRound } from './TabuRound';
 import { MentirosoRound } from './MentirosoRound';
 import { LeilaoRound } from './LeilaoRound';
@@ -15,8 +15,8 @@ export function RoundScreen(props: RoundProps) {
     return <WaitingCard>A rodada está sendo preparada…</WaitingCard>;
   }
   switch (round.kind) {
-    case 'desenha':
-      return <DesenhaRound {...props} round={round} />;
+    case 'mimica':
+      return <MimicaRound key={round.turnIndex} {...props} round={round} />;
     case 'tabu':
       return <TabuRound key={round.turnIndex} {...props} round={round} />;
     case 'mentiroso':

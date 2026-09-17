@@ -8,8 +8,8 @@ function totalMsFor(game: GameState): number | undefined {
   const r = game.round;
   if (!r) return undefined;
   switch (r.kind) {
-    case 'desenha':
-      return DURATIONS.desenha.turn;
+    case 'mimica':
+      return DURATIONS.mimica.turn;
     case 'tabu':
       return DURATIONS.tabu.turn;
     case 'mentiroso':

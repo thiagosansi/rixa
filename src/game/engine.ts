@@ -14,12 +14,14 @@ import type {
   RoundState,
   Scores,
   TeamId,
+  TurnTally,
 } from './types';
 import type { Deck } from './content';
 import {
   DURATIONS,
   LEILAO_MAX_BID,
   LEILAO_MIN_BID,
+  MIMICA_SKIP_DEBOUNCE_MS,
   POINTS,
   RELAMPAGO_TOTAL_QUESTIONS,
   TABU_PENALTY_DEBOUNCE_MS,
@@ -164,9 +166,9 @@ export function computeSecrets(state: GameState, content: Deck): Record<string, 
   const round = state.round;
   if (!round || state.phase !== 'round-play') return secrets;
 
-  if (round.kind === 'desenha') {
-    const word = pick(content.desenha, round.wordIndex);
-    if (round.drawerId && word) secrets[round.drawerId] = { kind: 'desenha-word', word };
+  if (round.kind === 'mimica') {
+    const word = pick(content.mimica, round.wordIndex);
+    if (round.performerId && word) secrets[round.performerId] = { kind: 'mimica-word', word };
     return secrets;
   }
 
@@ -282,6 +284,21 @@ export function applyPlayer(
       return withRound(state, { ...r, cardIndex: r.cardIndex + 1 });
     }
 
+    case 'mimica-skip': {
+      const r = state.round;
+      if (state.phase !== 'round-play' || r?.kind !== 'mimica') return state;
+      if (!r.performerId || r.performerId !== playerId) return state; // só quem faz a mímica pula
+      // toque duplo no botão = um pulo só
+      if (r.lastSkipAt !== null && now - r.lastSkipAt < MIMICA_SKIP_DEBOUNCE_MS) return state;
+      const tally = r.byTeam[r.activeTeam];
+      return withRound(state, {
+        ...r,
+        wordIndex: r.wordIndex + 1,
+        lastSkipAt: now,
+        byTeam: { ...r.byTeam, [r.activeTeam]: { ...tally, skipped: tally.skipped + 1 } },
+      });
+    }
+
     case 'submit-lie': {
       const r = state.round;
       if (state.phase !== 'round-play' || r?.kind !== 'mentiroso' || r.stage !== 'writing') {
@@ -388,7 +405,7 @@ export function applyPlayer(
 function applyGuess(state: GameState, playerId: string, raw: string, now: number): GameState {
   const r = state.round;
   if (state.phase !== 'round-play') return state;
-  if (!r || (r.kind !== 'desenha' && r.kind !== 'tabu')) return state;
+  if (!r || (r.kind !== 'mimica' && r.kind !== 'tabu')) return state;
 
   const text = raw.trim().slice(0, 60);
   if (!text) return state;
@@ -396,18 +413,18 @@ function applyGuess(state: GameState, playerId: string, raw: string, now: number
   const team = teamOf(state, playerId);
   if (team !== r.activeTeam) return state;
 
-  const performerId = r.kind === 'desenha' ? r.drawerId : r.clueGiverId;
-  if (performerId === playerId) return state; // quem desenha/dá dica não chuta
+  const performerId = r.kind === 'mimica' ? r.performerId : r.clueGiverId;
+  if (performerId === playerId) return state; // quem faz a mímica/dá dica não chuta
 
   const secret = performerId ? state.secrets[performerId] : undefined;
   const target =
-    secret && (secret.kind === 'desenha-word' || secret.kind === 'tabu-card') ? secret.word : null;
+    secret && (secret.kind === 'mimica-word' || secret.kind === 'tabu-card') ? secret.word : null;
   const correct = target !== null && normalize(text) === normalize(target);
 
   const entry = { playerId, text, correct, at: now };
 
-  if (r.kind === 'desenha') {
-    const next = addScore(state, correct ? r.activeTeam : null, correct ? POINTS.desenhaCorrect : 0);
+  if (r.kind === 'mimica') {
+    const next = addScore(state, correct ? r.activeTeam : null, correct ? POINTS.mimicaCorrect : 0);
     return withRound(next, {
       ...r,
       guesses: [...r.guesses, entry].slice(-30),
@@ -427,10 +444,7 @@ function applyGuess(state: GameState, playerId: string, raw: string, now: number
   });
 }
 
-function bumpScored(
-  byTeam: Record<TeamId, { scored: number; penalties: number }>,
-  team: TeamId,
-): Record<TeamId, { scored: number; penalties: number }> {
+function bumpScored(byTeam: Record<TeamId, TurnTally>, team: TeamId): Record<TeamId, TurnTally> {
   return { ...byTeam, [team]: { ...byTeam[team], scored: byTeam[team].scored + 1 } };
 }
 
@@ -519,19 +533,20 @@ function advanceRound(state: GameState, content: Deck, now: number): GameState {
   if (!r) return state;
 
   switch (r.kind) {
-    case 'desenha': {
+    case 'mimica': {
       if (r.turnIndex === 0) {
         const next = otherTeam(r.activeTeam);
-        const drawer = pickRotating(playersOfTeam(state.players, next), state.roundIndex);
+        const performer = pickRotating(playersOfTeam(state.players, next), state.roundIndex);
         return withRound(state, {
           ...r,
           activeTeam: next,
-          drawerId: drawer?.id ?? null,
+          performerId: performer?.id ?? null,
           turnIndex: 1,
           // palavra nova: o 2o time não herda a palavra que o 1o deixou na mesa
           wordIndex: r.wordIndex + 1,
-          deadline: now + DURATIONS.desenha.turn,
+          deadline: now + DURATIONS.mimica.turn,
           guesses: [],
+          lastSkipAt: null,
         });
       }
       return finishRound(state);

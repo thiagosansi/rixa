@@ -16,7 +16,27 @@ import {
 import { WaitingCard } from '@/components/player/WaitingCard';
 import { useWakeLock } from '@/components/player/hooks';
 
+const ROOM_KEY = 'rixa:room-code';
+
+function getStoredRoom(): string {
+  try {
+    return window.localStorage.getItem(ROOM_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function setStoredRoom(code: string | null): void {
+  try {
+    if (code) window.localStorage.setItem(ROOM_KEY, code);
+    else window.localStorage.removeItem(ROOM_KEY);
+  } catch {
+    /* modo privado: segue o jogo */
+  }
+}
+
 export default function JogarPage() {
+  const [booted, setBooted] = useState(false);
   const [playerId, setPlayerId] = useState('');
   const [codeInput, setCodeInput] = useState('');
   const [nameInput, setNameInput] = useState('');
@@ -29,13 +49,22 @@ export default function JogarPage() {
   const offsetRef = useRef<number | null>(null);
   const playerIdRef = useRef('');
 
-  // id estável + código vindo do QR (?code=ABCD) + último nome usado
+  // id estável + código vindo do QR (?code=ABCD) ou da última sala + último nome usado.
+  // Se já tem id, nome e código, reentra sozinho: recarregar a página não pede "Entrar" de novo.
+  // (Idempotente: em StrictMode o efeito roda duas vezes e chega no mesmo estado.)
   useEffect(() => {
-    setPlayerId(getPlayerId());
-    setNameInput(getStoredName());
-    const params = new URLSearchParams(window.location.search);
-    const fromUrl = params.get('code');
-    if (fromUrl) setCodeInput(normalizeRoomCode(fromUrl));
+    const id = getPlayerId();
+    const name = getStoredName();
+    const fromUrl = new URLSearchParams(window.location.search).get('code');
+    const code = normalizeRoomCode(fromUrl ?? getStoredRoom());
+    setPlayerId(id);
+    setNameInput(name);
+    setCodeInput(code);
+    if (id && name.trim().length > 0 && code.length === 4) {
+      setStoredRoom(code);
+      setRoom(code);
+    }
+    setBooted(true);
   }, []);
 
   const handleEnvelope = useCallback((env: Envelope) => {
@@ -110,8 +139,19 @@ export default function JogarPage() {
     const name = nameInput.trim();
     if (code.length !== 4 || name.length === 0) return;
     setStoredName(name);
+    setStoredRoom(code);
     setRoom(code);
   }
+
+  /** sai da sala e desliga a reentrada automática: volta ao formulário com os campos preenchidos */
+  function leave() {
+    setStoredRoom(null);
+    setGame(null);
+    setRoom(null);
+  }
+
+  // evita piscar o formulário antes de saber se a reentrada automática vai acontecer
+  if (!booted) return null;
 
   if (!room) {
     return (
@@ -156,10 +196,7 @@ export default function JogarPage() {
             <button
               type="button"
               className="mt-4 block min-h-14 w-full rounded-2xl border-2 border-line px-4 text-lg text-ink"
-              onClick={() => {
-                setGame(null);
-                setRoom(null);
-              }}
+              onClick={leave}
             >
               Trocar código
             </button>
@@ -167,7 +204,17 @@ export default function JogarPage() {
         )}
 
         {game?.phase === 'lobby' && (
-          <TeamPicker current={team} onPick={(t) => act({ type: 'pick-team', team: t })} />
+          <>
+            <TeamPicker current={team} onPick={(t) => act({ type: 'pick-team', team: t })} />
+            <button
+              type="button"
+              className="mx-auto min-h-14 px-4 text-base text-muted underline underline-offset-4"
+              onClick={leave}
+              data-testid="switch-player"
+            >
+              Não é você ({nameInput})? Trocar
+            </button>
+          </>
         )}
 
         {game && inGame && (!me || !team) && game.phase !== 'game-over' && <SpectatorScreen game={game} />}
@@ -176,7 +223,7 @@ export default function JogarPage() {
           <RoundIntroScreen game={game} me={me} team={team} />
         )}
         {game && me && team && game.phase === 'round-play' && (
-          <RoundScreen game={game} me={me} team={team} secret={secret} act={act} send={send} />
+          <RoundScreen game={game} me={me} team={team} secret={secret} act={act} />
         )}
         {game && me && team && game.phase === 'round-result' && (
           <RoundResultScreen game={game} team={team} />
@@ -246,7 +293,7 @@ function JoinForm({
       </form>
 
       <p className="text-center text-sm text-muted">
-        O código aparece na TV. Mesma rede WiFi, mesmo jogo.
+        Peça o código de 4 letras pra quem está com a TV.
       </p>
     </main>
   );

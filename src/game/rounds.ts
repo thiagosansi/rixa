@@ -2,7 +2,7 @@ import type { GameState, Player, RoundKind, RoundState, TeamId, TurnTally } from
 
 /** Ordem fixa do torneio: roundIndex 0..4 */
 export const ROUND_ORDER: readonly RoundKind[] = [
-  'desenha',
+  'mimica',
   'tabu',
   'mentiroso',
   'leilao',
@@ -19,14 +19,14 @@ export type RoundInfo = {
 };
 
 export const ROUND_INFO: Record<RoundKind, RoundInfo> = {
-  desenha: {
-    kind: 'desenha',
-    title: 'Desenha ou Cala a Boca',
-    tagline: 'Uma pessoa desenha no celular. O time chuta na TV.',
+  mimica: {
+    kind: 'mimica',
+    title: 'Mímica',
+    tagline: 'Uma pessoa faz mímica na frente de todo mundo. O time chuta pelo celular.',
     rules: [
-      'Um jogador de cada time desenha, o resto do time adivinha.',
-      'Cada acerto vale 150 pontos.',
-      'Sem falar, sem letras, sem número.',
+      'Um jogador de cada time vê a palavra no celular e faz mímica; o resto do time digita os palpites.',
+      'Cada acerto vale 150 pontos. Travou? Pode pular sem perder nada.',
+      'Sem falar, sem fazer som, sem apontar objetos, sem soletrar no ar.',
     ],
   },
   tabu: {
@@ -73,7 +73,7 @@ export const ROUND_INFO: Record<RoundKind, RoundInfo> = {
 
 /** Todas as durações em milissegundos. */
 export const DURATIONS = {
-  desenha: { turn: 60_000 },
+  mimica: { turn: 60_000 },
   tabu: { turn: 60_000 },
   mentiroso: { writing: 45_000, voting: 30_000, reveal: 12_000 },
   leilao: { bidding: 30_000, challenge: 90_000, judging: 60_000 },
@@ -87,6 +87,8 @@ export const LEILAO_MIN_BID = 1;
 export const LEILAO_MAX_BID = 10;
 /** Dois árbitros apertando juntos contam como UMA infração. */
 export const TABU_PENALTY_DEBOUNCE_MS = 1500;
+/** Toque duplo no "Pular" da mímica conta como UM pulo. */
+export const MIMICA_SKIP_DEBOUNCE_MS = 1000;
 
 /** Reveal do Mentiroso: um passo por opção + folga final para a verdade e os pontos. */
 export const MENTIROSO_REVEAL_STEP_MS = 3_500;
@@ -108,7 +110,7 @@ export function contentSeed(now: number, salt: number): number {
  *
  * Balanceamento — meta: rodadas 1–4 somam ~1500–2000 por time; a final vale
  * ~1000–1800 (teto 2700): dá pra virar, mas não anula o resto.
- *  - desenha:   1 turno de 60s, ~3 palavras x 150            ≈ 300–600
+ *  - mímica:    1 turno de 60s, ~3 palavras x 150            ≈ 300–600
  *  - tabu:      1 turno de 60s, ~4–5 cartas x 100, -50/infração ≈ 300–500
  *  - mentiroso: 3 perguntas; verdade 100, enganar ADVERSÁRIO 75  ≈ 400–750
  *  - leilão:    2 categorias; lance (1..10) x 50 pra quem cumpre
@@ -117,7 +119,7 @@ export function contentSeed(now: number, salt: number): number {
  * Relâmpago usa média (e não soma) para o placar não depender do tamanho do time.
  */
 export const POINTS = {
-  desenhaCorrect: 150,
+  mimicaCorrect: 150,
   tabuCorrect: 100,
   tabuPenalty: -50,
   mentirosoVoteReceived: 75,
@@ -164,25 +166,29 @@ export function startingTeam(roundIndex: number): TeamId {
 }
 
 export function emptyTally(): Record<TeamId, TurnTally> {
-  return { red: { scored: 0, penalties: 0 }, blue: { scored: 0, penalties: 0 } };
+  return {
+    red: { scored: 0, penalties: 0, skipped: 0 },
+    blue: { scored: 0, penalties: 0, skipped: 0 },
+  };
 }
 
 /** Estado inicial da rodada `kind`, derivado do estado atual do jogo. */
 export function initialRoundState(kind: RoundKind, state: GameState, now: number): RoundState {
   const first = startingTeam(state.roundIndex);
   switch (kind) {
-    case 'desenha': {
-      const drawer = pickRotating(playersOfTeam(state.players, first), state.roundIndex);
+    case 'mimica': {
+      const performer = pickRotating(playersOfTeam(state.players, first), state.roundIndex);
       return {
-        kind: 'desenha',
+        kind: 'mimica',
         activeTeam: first,
-        drawerId: drawer?.id ?? null,
+        performerId: performer?.id ?? null,
         wordIndex: contentSeed(now, 1),
-        deadline: now + DURATIONS.desenha.turn,
+        deadline: now + DURATIONS.mimica.turn,
         solvedWords: [],
         guesses: [],
         turnIndex: 0,
         byTeam: emptyTally(),
+        lastSkipAt: null,
       };
     }
     case 'tabu': {

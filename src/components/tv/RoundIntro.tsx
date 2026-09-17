@@ -19,8 +19,8 @@ export function RoundIntro({ game, onNext }: { game: GameState; onNext: () => vo
 
   const first = startingTeam(game.roundIndex);
   const performer = pickRotating(playersOfTeam(game.players, first), game.roundIndex);
-  const turnBased = kind === 'desenha' || kind === 'tabu';
-  const verb = kind === 'desenha' ? 'desenha' : 'dá as dicas';
+  const turnBased = kind === 'mimica' || kind === 'tabu';
+  const verb = kind === 'mimica' ? 'faz a mímica' : 'dá as dicas';
 
   return (
     <div className="relative flex flex-1 flex-col items-center justify-center gap-7 text-center">

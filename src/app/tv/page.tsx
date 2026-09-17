@@ -19,12 +19,11 @@ import { useRoomChannel } from '@/lib/channel';
 import { Button, CodeDisplay, TEAM_NAME, TeamBadge } from '@/components/ui';
 import type { Deck } from '@/game/content';
 import { autoAdvanceFor } from '@/components/tv/autoAdvance';
-import type { DrawEnvelope, StrokeBus } from '@/components/tv/DrawCanvas';
 import { RoundIntro } from '@/components/tv/RoundIntro';
 import { RoundResult } from '@/components/tv/RoundResult';
 import { GameOver } from '@/components/tv/GameOver';
 import { HostControls } from '@/components/tv/HostControls';
-import { DesenhaScreen } from '@/components/tv/DesenhaScreen';
+import { MimicaScreen } from '@/components/tv/MimicaScreen';
 import { TabuScreen } from '@/components/tv/TabuScreen';
 import { MentirosoScreen } from '@/components/tv/MentirosoScreen';
 import { LeilaoScreen } from '@/components/tv/LeilaoScreen';
@@ -74,25 +73,7 @@ export default function TvPage() {
     };
   }, [code]);
 
-  // traços não passam pelo estado do React: vão direto pro canvas
-  const strokeListeners = useRef(new Set<(env: DrawEnvelope) => void>());
-  const strokeBus = useMemo<StrokeBus>(
-    () => ({
-      subscribe(fn) {
-        strokeListeners.current.add(fn);
-        return () => {
-          strokeListeners.current.delete(fn);
-        };
-      },
-    }),
-    [],
-  );
-
   const handleEnvelope = useCallback((env: Envelope) => {
-    if (env.t === 'stroke' || env.t === 'clear-canvas') {
-      strokeListeners.current.forEach((fn) => fn(env));
-      return;
-    }
     if (env.t !== 'act') return;
     setGame((prev) =>
       prev ? hostApplyPlayer(prev, env.playerId, env.action, contentRef.current) : prev,
@@ -205,7 +186,6 @@ export default function TvPage() {
           <RoundPlay
             game={game}
             content={content}
-            bus={strokeBus}
             onNext={() => host({ type: 'next-phase' })}
           />
           <HostControls onSkip={() => host({ type: 'next-phase' })} onEndRound={endRound} />
@@ -374,19 +354,17 @@ function Screen({ children, className = '' }: { children: ReactNode; className?:
 function RoundPlay({
   game,
   content,
-  bus,
   onNext,
 }: {
   game: GameState;
   content: Deck;
-  bus: StrokeBus;
   onNext: () => void;
 }) {
   const round = game.round;
   if (!round) return null;
   switch (round.kind) {
-    case 'desenha':
-      return <DesenhaScreen game={game} round={round} bus={bus} />;
+    case 'mimica':
+      return <MimicaScreen game={game} round={round} />;
     case 'tabu':
       return <TabuScreen game={game} round={round} />;
     case 'mentiroso':
