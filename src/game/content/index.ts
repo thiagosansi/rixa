@@ -1,0 +1,60 @@
+import type { DeckMode } from '@/game/types';
+import * as familiaModule from './familia';
+import * as semFiltroModule from './sem-filtro';
+
+export type DesenhaWord = string;
+export type TabuCard = { word: string; forbidden: string[] };
+export type MentirosoQuestion = { question: string; truth: string };
+export type LeilaoCategory = { category: string; hint?: string };
+export type RelampagoQuestion = { text: string; options: string[]; answerIndex: number };
+
+export type Deck = {
+  desenha: DesenhaWord[];
+  tabu: TabuCard[];
+  mentiroso: MentirosoQuestion[];
+  leilao: LeilaoCategory[];
+  relampago: RelampagoQuestion[];
+};
+
+export const EMPTY_DECK: Deck = {
+  desenha: [],
+  tabu: [],
+  mentiroso: [],
+  leilao: [],
+  relampago: [],
+};
+
+function isDeck(value: unknown): value is Deck {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  return (
+    Array.isArray(v.desenha) &&
+    Array.isArray(v.tabu) &&
+    Array.isArray(v.mentiroso) &&
+    Array.isArray(v.leilao) &&
+    Array.isArray(v.relampago)
+  );
+}
+
+/**
+ * Pega o baralho exportado pelo módulo, seja qual for o nome do export.
+ * Assim o agente de conteúdo pode usar `familia`, `FAMILIA`, `default`… e nada quebra.
+ */
+function resolveDeck(mod: object): Deck {
+  const direct = Object.values(mod).find(isDeck);
+  return direct ?? EMPTY_DECK;
+}
+
+export const DECKS: Record<DeckMode, Deck> = {
+  familia: resolveDeck(familiaModule),
+  'sem-filtro': resolveDeck(semFiltroModule),
+};
+
+export function pickDeck(mode: DeckMode): Deck {
+  return DECKS[mode] ?? DECKS.familia;
+}
+
+export const DECK_LABELS: Record<DeckMode, string> = {
+  familia: 'Família',
+  'sem-filtro': 'Sem Filtro',
+};

@@ -1,0 +1,18 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Um único processo: server.mjs serve o Next e o relay WebSocket (/api/ws) em memória.
+# Não escale para mais de uma instância: as salas vivem na memória do processo.
+services:
+  - type: web
+    name: rixa
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    # `autoDeploy: true` está deprecado na spec atual; este é o equivalente
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_TRANSPORT
+        value: ws
