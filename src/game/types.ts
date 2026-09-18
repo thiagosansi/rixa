@@ -1,6 +1,6 @@
 export type TeamId = 'red' | 'blue';
 export type DeckMode = 'familia' | 'sem-filtro';
-export type RoundKind = 'mimica' | 'tabu' | 'mentiroso' | 'leilao' | 'relampago';
+export type RoundKind = 'mimica' | 'tabu' | 'mentiroso' | 'leilao' | 'telefone' | 'relampago';
 export type Phase = 'lobby' | 'round-intro' | 'round-play' | 'round-result' | 'game-over';
 
 export type Player = { id: string; name: string; team: TeamId | null; lastSeen: number };
@@ -86,7 +86,58 @@ export type RelampagoState = {
   revealed: boolean;
 };
 
-export type RoundState = MimicaState | TabuState | MentirosoState | LeilaoState | RelampagoState;
+/** Um lance da corrente: frase (passos pares) ou só emojis (passos ímpares). */
+export type TelefoneEntry = {
+  playerId: string;
+  text: string;
+  mode: 'phrase' | 'emoji';
+  /** entrada preenchida pelo host quando o prazo estourou sem entrega */
+  auto: boolean;
+};
+
+export type TelefoneChain = {
+  /** quem escreveu a frase inicial (a corrente "é" dele; o time dele leva os votos) */
+  starterId: string;
+  starterTeam: TeamId;
+  /** começo sugerido do baralho (inspiração/placeholder no passo 0) */
+  suggestion: string;
+  /** entries[k] = lance do passo k (comprimento cresce até `steps`) */
+  entries: TelefoneEntry[];
+};
+
+export type TelefoneState = {
+  kind: 'telefone';
+  stage: 'writing' | 'reveal' | 'voting' | 'result';
+  /** participantes (só quem tem time), embaralhados: a posição i começa a corrente i */
+  order: string[];
+  /** 3 ou 5 (ímpar: começa e termina em frase) */
+  steps: number;
+  /** passo atual durante `writing` (0..steps-1) */
+  step: number;
+  /**
+   * Correntes. No estado do HOST são sempre completas; no estado TRANSMITIDO
+   * (ver `toPublicState`) durante o `writing` os textos vão vazios (só progresso).
+   */
+  chains: TelefoneChain[];
+  deadline: number;
+  /** reveal: corrente e passo sendo mostrados na TV */
+  revealChain: number;
+  revealStep: number;
+  /** playerId -> índice da corrente mais engraçada */
+  votes: Record<string, number>;
+  /** por corrente: a frase final preservou >= 50% das palavras da inicial (calculado no reveal) */
+  survived: boolean[];
+  /** correntes com >= 1 voto, da mais votada pra menos (calculado no result) */
+  ranking: number[];
+};
+
+export type RoundState =
+  | MimicaState
+  | TabuState
+  | MentirosoState
+  | LeilaoState
+  | TelefoneState
+  | RelampagoState;
 
 export type GameState = {
   code: string;
@@ -94,7 +145,7 @@ export type GameState = {
   deck: DeckMode;
   players: Player[];
   scores: Scores;
-  roundIndex: number;   // 0..4
+  roundIndex: number;   // 0..5
   round: RoundState | null;
   multiplier: number;   // 1, ou 3 na rodada final
   roundLog: { roundIndex: number; kind: RoundKind; delta: Scores }[];
@@ -109,6 +160,19 @@ export type PlayerSecret =
   | { kind: 'tabu-card'; word: string; forbidden: string[]; role: 'clue-giver' | 'referee' }
   | { kind: 'mentiroso-truth'; truth: string }
   | { kind: 'leilao-bid'; amount: number | null }
+  /**
+   * Tarefa do passo atual do telefone sem fio. `input` = lance do passo anterior
+   * daquela corrente (null no passo 0); `starter` = começo sugerido (só no passo 0).
+   * Viaja por envelope `secret` endereçado (nunca no broadcast) durante o `writing`.
+   */
+  | {
+      kind: 'telefone-task';
+      chainIndex: number;
+      step: number;
+      mode: 'phrase' | 'emoji';
+      input: string | null;
+      starter: string | null;
+    }
   | { kind: 'none' };
 
 export type PlayerAction =
@@ -124,6 +188,8 @@ export type PlayerAction =
   | { type: 'bid'; amount: number }
   | { type: 'submit-answer'; text: string }
   | { type: 'judge'; index: number; accepted: boolean }
+  | { type: 'telefone-submit'; text: string }
+  | { type: 'telefone-vote'; chainIndex: number }
   | { type: 'answer-choice'; choice: number };
 
 export type HostAction =

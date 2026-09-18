@@ -214,6 +214,16 @@ body {
 /* títulos com acento em várias linhas: o 0.92 do .display faz til/cedilha colidirem */
 .tv-lh { line-height: 1.1; }
 
+/* intro e fim de jogo: botão e selo de time escalam com a altura da TV (720p → 1080p) */
+.tv-button-fit {
+  min-height: clamp(56px, 9.5vh, 80px);
+  font-size: clamp(1.5rem, 3.6vh, 2.25rem);
+}
+.tv-badge-fit {
+  font-size: clamp(1.5rem, 3.6vh, 3rem);
+  padding: 0.25em 0.6em;
+}
+
 /* verso da carta do tabu */
 .tv-card-pattern {
   background-image:

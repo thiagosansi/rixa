@@ -384,10 +384,42 @@ const relampago = [
   { text: 'Qual é o maior órgão interno do corpo humano?', options: ['Pulmão', 'Cérebro', 'Intestino', 'Fígado'], answerIndex: 3 },
 ];
 
+// ---------------------------------------------------------------------------
+// TELEFONE SEM FIO — 25 começos de frase (inspiração/placeholder para a frase inicial)
+// ---------------------------------------------------------------------------
+const telefone: string[] = [
+  'Na última festa de família, o tio…',
+  'Minha sogra abriu a porta e viu…',
+  'O Uber parou no meio da ponte porque…',
+  'No churrasco de domingo, meu cunhado apareceu com…',
+  'A professora chamou os pais porque a criança…',
+  'No meio da reunião de trabalho, o chefe…',
+  'O cachorro fugiu de casa carregando…',
+  'Na fila do INSS, uma senhora começou a…',
+  'Meu vizinho saiu na sacada às três da manhã com…',
+  'No casamento, a noiva entrou na igreja segurando…',
+  'O Papai Noel do shopping foi demitido depois de…',
+  'Acordei de madrugada e encontrei minha avó…',
+  'No elevador do prédio, o síndico apareceu vestido de…',
+  'A dieta acabou quando abri a geladeira e…',
+  'No plantão do hospital, o médico chegou correndo com…',
+  'Meu pai tentou usar o celular novo e…',
+  'O padre parou a missa quando viu…',
+  'Na estrada para a praia, o carro quebrou e…',
+  'No aniversário de 80 anos da vovó, o bolo…',
+  'O entregador tocou a campainha segurando…',
+  'Na academia, o personal me fez…',
+  'No grupo da família, minha tia mandou…',
+  'Na Black Friday, meu marido voltou com…',
+  'O dentista olhou dentro da minha boca e…',
+  'Na reunião de condomínio, alguém trouxe…',
+];
+
 export const familia: Deck = {
   mimica,
   tabu,
   mentiroso,
   leilao,
   relampago,
+  telefone,
 };

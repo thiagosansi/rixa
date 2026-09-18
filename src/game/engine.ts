@@ -14,6 +14,9 @@ import type {
   RoundState,
   Scores,
   TeamId,
+  TelefoneChain,
+  TelefoneEntry,
+  TelefoneState,
   TurnTally,
 } from './types';
 import type { Deck } from './content';
@@ -26,7 +29,14 @@ import {
   RELAMPAGO_TOTAL_QUESTIONS,
   TABU_PENALTY_DEBOUNCE_MS,
   TEAMS,
+  TELEFONE_AUTO_EMOJI,
+  TELEFONE_AUTO_PHRASE,
+  TELEFONE_EMOJI_MAX,
+  TELEFONE_EMOJI_MIN,
+  TELEFONE_PHRASE_MAX,
+  TELEFONE_PHRASE_MIN,
   TOTAL_ROUNDS,
+  contentSeed,
   initialRoundState,
   mentirosoRevealMs,
   multiplierFor,
@@ -35,6 +45,8 @@ import {
   playersOfTeam,
   roundKindAt,
   startingTeam,
+  telefoneChainFor,
+  telefoneSteps,
 } from './rounds';
 
 /* ------------------------------------------------------------------ */
@@ -205,9 +217,285 @@ export function computeSecrets(state: GameState, content: Deck): Record<string, 
     return secrets;
   }
 
+  if (round.kind === 'telefone') {
+    // tarefa do passo: cada participante vê SÓ o lance anterior da corrente em que trabalha.
+    // (toPublicState tira isto do broadcast; a TV entrega por envelope `secret` endereçado.)
+    if (round.stage !== 'writing') return secrets;
+    for (const task of telefoneTasks(round)) secrets[task.playerId] = task.secret;
+    return secrets;
+  }
+
   // mentiroso: ninguém recebe a verdade durante o jogo (o variante 'mentiroso-truth'
   // existe no contrato para telas futuras que queiram revelar a verdade a um juiz).
   return secrets;
+}
+
+/* ------------------------------------------------------------------ */
+/* telefone sem fio                                                    */
+/* ------------------------------------------------------------------ */
+
+export type TelefoneTask = {
+  playerId: string;
+  secret: Extract<PlayerSecret, { kind: 'telefone-task' }>;
+};
+
+/** Modo do passo k: frases nos pares, emojis nos ímpares. */
+export function telefoneModeFor(step: number): 'phrase' | 'emoji' {
+  return step % 2 === 1 ? 'emoji' : 'phrase';
+}
+
+/** Tarefa de cada participante no passo atual (corrente = (posição + passo) mod N). */
+export function telefoneTasks(r: TelefoneState): TelefoneTask[] {
+  const n = r.order.length;
+  if (n === 0 || r.stage !== 'writing') return [];
+  const mode = telefoneModeFor(r.step);
+  return r.order.map((playerId, position) => {
+    const chainIndex = telefoneChainFor(position, r.step, n);
+    const chain = r.chains[chainIndex];
+    const previous = r.step > 0 ? (chain?.entries[r.step - 1]?.text ?? '') : null;
+    return {
+      playerId,
+      secret: {
+        kind: 'telefone-task',
+        chainIndex,
+        step: r.step,
+        mode,
+        input: previous,
+        starter: r.step === 0 ? (chain?.suggestion ?? '') : null,
+      },
+    };
+  });
+}
+
+/**
+ * Um emoji "visual": pictograma (com tom de pele / seletor de variação opcionais),
+ * bandeira (2 indicadores regionais) ou keycap (dígito + ⃣), com sequências ZWJ e
+ * tags de subdivisão (🏴󠁧󠁢󠁳󠁣󠁴󠁿) coladas.
+ */
+const EMOJI_ATOM =
+  '(?:\\p{Extended_Pictographic}\\uFE0F?\\p{Emoji_Modifier}?|\\p{Regional_Indicator}{2}|[0-9#*]\\uFE0F?\\u20E3)';
+const EMOJI_TOKEN = `${EMOJI_ATOM}(?:[\\u{E0020}-\\u{E007F}]+)?(?:\\u200D${EMOJI_ATOM})*`;
+const EMOJI_ONLY = new RegExp(`^(?:\\s*${EMOJI_TOKEN})+\\s*$`, 'u');
+const EMOJI_SCAN = new RegExp(EMOJI_TOKEN, 'gu');
+
+/** Separa a string em emojis (null se houver qualquer coisa que não seja emoji ou espaço). */
+export function splitEmojis(text: string): string[] | null {
+  if (!EMOJI_ONLY.test(text)) return null;
+  return text.match(EMOJI_SCAN) ?? [];
+}
+
+/**
+ * Valida/normaliza um lance. Frase: 3 a 120 caracteres (trim, espaços colapsados).
+ * Emoji: só emojis e espaços, de 1 a 12 emojis. Devolve null se inválido.
+ */
+export function validateTelefoneText(text: string, mode: 'phrase' | 'emoji'): string | null {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (mode === 'emoji') {
+    const emojis = splitEmojis(clean);
+    if (!emojis || emojis.length < TELEFONE_EMOJI_MIN || emojis.length > TELEFONE_EMOJI_MAX) return null;
+    return clean;
+  }
+  if (clean.length < TELEFONE_PHRASE_MIN || clean.length > TELEFONE_PHRASE_MAX) return null;
+  return clean;
+}
+
+/** Palavras "significativas" (>= 4 letras, normalizadas) de uma frase. */
+export function significantWords(text: string): Set<string> {
+  return new Set(
+    normalize(text)
+      .split(' ')
+      .filter((w) => w.length >= 4),
+  );
+}
+
+/**
+ * A corrente sobreviveu se a frase final compartilha >= 50% das palavras significativas
+ * da inicial. Frase inicial sem palavra de 4+ letras: compara todas as palavras.
+ * Lance automático (prazo estourado) em uma das pontas nunca conta como sobrevivência.
+ */
+export function telefoneSurvived(chain: TelefoneChain): boolean {
+  const first = chain.entries[0];
+  const last = chain.entries[chain.entries.length - 1];
+  if (!first || !last || first === last) return false;
+  if (first.auto || last.auto || last.mode !== 'phrase') return false;
+  let start = significantWords(first.text);
+  let end = significantWords(last.text);
+  if (start.size === 0) {
+    start = new Set(normalize(first.text).split(' ').filter(Boolean));
+    end = new Set(normalize(last.text).split(' ').filter(Boolean));
+  }
+  if (start.size === 0) return false;
+  let shared = 0;
+  for (const w of start) if (end.has(w)) shared++;
+  return shared * 2 >= start.size;
+}
+
+/** Contagem de votos por corrente. */
+export function telefoneVoteCounts(r: TelefoneState): number[] {
+  const counts = r.chains.map(() => 0);
+  for (const chainIndex of Object.values(r.votes)) {
+    if (chainIndex >= 0 && chainIndex < counts.length) counts[chainIndex]++;
+  }
+  return counts;
+}
+
+/** Correntes com >= 1 voto, da mais votada pra menos (empate: ordem da corrente). */
+export function telefoneRanking(r: TelefoneState): number[] {
+  const counts = telefoneVoteCounts(r);
+  return counts
+    .map((votes, i) => ({ votes, i }))
+    .filter((x) => x.votes > 0)
+    .sort((a, b) => b.votes - a.votes || a.i - b.i)
+    .map((x) => x.i);
+}
+
+/**
+ * Monta as correntes: participantes (só quem tem time) embaralhados com semente;
+ * a posição i começa a corrente i, com um começo sugerido do baralho.
+ */
+function setupTelefone(state: GameState, r: TelefoneState, content: Deck, now: number): TelefoneState {
+  const participants = state.players.filter((p) => p.team !== null);
+  const order = shuffleDeterministic(participants, `${state.code}:telefone:${state.roundIndex}:${now}`);
+  const seed = contentSeed(now, 6);
+  const chains: TelefoneChain[] = order.map((p, i) => ({
+    starterId: p.id,
+    starterTeam: p.team as TeamId,
+    suggestion: pick(content.telefone, seed + i) ?? '',
+    entries: [],
+  }));
+  return {
+    ...r,
+    order: order.map((p) => p.id),
+    steps: telefoneSteps(order.length),
+    step: 0,
+    chains,
+    deadline: now + DURATIONS.telefone.step,
+  };
+}
+
+/** Quem não entregou no passo atual recebe o lance automático. */
+function fillTelefoneAuto(r: TelefoneState): TelefoneChain[] {
+  const mode = telefoneModeFor(r.step);
+  const n = r.order.length;
+  const chains = r.chains.map((c) => ({ ...c, entries: c.entries.slice() }));
+  for (let position = 0; position < n; position++) {
+    const chainIndex = telefoneChainFor(position, r.step, n);
+    const chain = chains[chainIndex];
+    if (chain.entries[r.step]) continue;
+    const auto: TelefoneEntry = {
+      playerId: r.order[position],
+      text: mode === 'emoji' ? TELEFONE_AUTO_EMOJI : TELEFONE_AUTO_PHRASE,
+      mode,
+      auto: true,
+    };
+    chain.entries[r.step] = auto;
+  }
+  return chains;
+}
+
+/** Todo mundo entregou o passo atual? (a TV usa para não esperar o relógio) */
+export function telefoneAllSubmitted(r: TelefoneState): boolean {
+  if (r.stage !== 'writing') return false;
+  const n = r.order.length;
+  if (n === 0) return false;
+  for (let position = 0; position < n; position++) {
+    const chain = r.chains[telefoneChainFor(position, r.step, n)];
+    if (!chain?.entries[r.step]) return false;
+  }
+  return true;
+}
+
+/** Todo mundo votou? */
+export function telefoneAllVoted(r: TelefoneState): boolean {
+  if (r.stage !== 'voting') return false;
+  return r.order.length > 0 && r.order.every((id) => r.votes[id] !== undefined);
+}
+
+function advanceTelefone(state: GameState, r: TelefoneState, now: number): GameState {
+  switch (r.stage) {
+    case 'writing': {
+      const chains = fillTelefoneAuto(r);
+      if (r.step + 1 < r.steps) {
+        return withRound(state, {
+          ...r,
+          chains,
+          step: r.step + 1,
+          deadline: now + DURATIONS.telefone.step,
+        });
+      }
+      return withRound(state, {
+        ...r,
+        chains,
+        stage: 'reveal',
+        revealChain: 0,
+        revealStep: 0,
+        survived: chains.map(telefoneSurvived),
+        deadline: now + DURATIONS.telefone.reveal,
+      });
+    }
+    case 'reveal': {
+      const n = r.chains.length;
+      if (r.revealStep + 1 < r.steps) {
+        return withRound(state, {
+          ...r,
+          revealStep: r.revealStep + 1,
+          deadline: now + DURATIONS.telefone.reveal,
+        });
+      }
+      if (r.revealChain + 1 < n) {
+        return withRound(state, {
+          ...r,
+          revealChain: r.revealChain + 1,
+          revealStep: 0,
+          deadline: now + DURATIONS.telefone.reveal,
+        });
+      }
+      return withRound(state, {
+        ...r,
+        stage: 'voting',
+        votes: {},
+        deadline: now + DURATIONS.telefone.voting,
+      });
+    }
+    case 'voting': {
+      const ranking = telefoneRanking(r);
+      const scored = scoreTelefone(state, { ...r, ranking });
+      return withRound(scored, {
+        ...r,
+        stage: 'result',
+        ranking,
+        deadline: now + DURATIONS.telefone.result,
+      });
+    }
+    case 'result':
+      return finishRound(state);
+  }
+}
+
+/**
+ * Pontuação: cada corrente sobrevivente vale 75 para os DOIS times; a mais votada
+ * 200 e a segunda 100 para o time de quem começou. Empate em 1º: todas levam 200 e
+ * não há 2º; empate em 2º: todas levam 100. Sem votos, sem bônus.
+ */
+function scoreTelefone(state: GameState, r: TelefoneState): GameState {
+  let next = state;
+  for (const survived of r.survived) {
+    if (!survived) continue;
+    for (const team of TEAMS) next = addScore(next, team, POINTS.telefoneSurvive);
+  }
+  const counts = telefoneVoteCounts(r);
+  if (r.ranking.length === 0) return next;
+  const top = counts[r.ranking[0]];
+  const firsts = r.ranking.filter((i) => counts[i] === top);
+  for (const i of firsts) next = addScore(next, r.chains[i].starterTeam, POINTS.telefoneFirst);
+  if (firsts.length > 1) return next;
+  const rest = r.ranking.filter((i) => counts[i] < top);
+  if (rest.length === 0) return next;
+  const second = counts[rest[0]];
+  for (const i of rest.filter((i) => counts[i] === second)) {
+    next = addScore(next, r.chains[i].starterTeam, POINTS.telefoneSecond);
+  }
+  return next;
 }
 
 /* ------------------------------------------------------------------ */
@@ -389,6 +677,39 @@ export function applyPlayer(
       return withRound(state, { ...r, accepted });
     }
 
+    case 'telefone-submit': {
+      const r = state.round;
+      if (state.phase !== 'round-play' || r?.kind !== 'telefone' || r.stage !== 'writing') {
+        return state;
+      }
+      const position = r.order.indexOf(playerId);
+      if (position < 0) return state; // espectador (ou alguém que entrou depois) fica fora
+      const mode = telefoneModeFor(r.step);
+      const text = validateTelefoneText(action.text, mode);
+      if (text === null) return state;
+      const chainIndex = telefoneChainFor(position, r.step, r.order.length);
+      const chains = r.chains.map((c, i) => {
+        if (i !== chainIndex) return c;
+        const entries = c.entries.slice();
+        entries[r.step] = { playerId, text, mode, auto: false }; // reenviar substitui
+        return { ...c, entries };
+      });
+      return withRound(state, { ...r, chains });
+    }
+
+    case 'telefone-vote': {
+      const r = state.round;
+      if (state.phase !== 'round-play' || r?.kind !== 'telefone' || r.stage !== 'voting') {
+        return state;
+      }
+      if (!r.order.includes(playerId)) return state;
+      if (r.votes[playerId] !== undefined) return state; // voto é único
+      const chain = r.chains[action.chainIndex];
+      if (!chain || !Number.isInteger(action.chainIndex)) return state;
+      if (chain.starterId === playerId) return state; // não vota na corrente que começou
+      return withRound(state, { ...r, votes: { ...r.votes, [playerId]: action.chainIndex } });
+    }
+
     case 'answer-choice': {
       const r = state.round;
       if (state.phase !== 'round-play' || r?.kind !== 'relampago' || r.revealed) return state;
@@ -497,11 +818,13 @@ function nextPhase(state: GameState, content: Deck, now: number): GameState {
 
     case 'round-intro': {
       const kind = roundKindAt(state.roundIndex);
+      const base = initialRoundState(kind, state, now);
+      const round = base.kind === 'telefone' ? setupTelefone(state, base, content, now) : base;
       return {
         ...state,
         phase: 'round-play',
         multiplier: multiplierFor(state.roundIndex),
-        round: initialRoundState(kind, state, now),
+        round,
       };
     }
 
@@ -638,6 +961,9 @@ function advanceRound(state: GameState, content: Deck, now: number): GameState {
       }
       return nextLeilaoCategory(scoreLeilao(state, r), r, now);
     }
+
+    case 'telefone':
+      return advanceTelefone(state, r, now);
 
     case 'relampago': {
       if (!r.revealed) {
@@ -788,33 +1114,62 @@ export function hostApplyHost(state: GameState, action: HostAction, content: Dec
   return { ...next, secrets: computeSecrets(next, content) };
 }
 
+/** Segredos que só viajam por envelope endereçado (nunca no broadcast). */
+function isPrivateSecret(secret: PlayerSecret): boolean {
+  return secret.kind === 'leilao-bid' || secret.kind === 'telefone-task';
+}
+
+function hideSecrets(secrets: Record<string, PlayerSecret>): Record<string, PlayerSecret> {
+  const out: Record<string, PlayerSecret> = {};
+  for (const [id, secret] of Object.entries(secrets)) {
+    out[id] = isPrivateSecret(secret) ? { kind: 'none' } : secret;
+  }
+  return out;
+}
+
 /**
  * O que pode sair no broadcast. O estado do host guarda os lances reais do leilão;
  * durante o `bidding` o broadcast leva só `hasBid` (bids/bidAt viram null e o segredo
  * `leilao-bid` sai de `secrets`). O lance do próprio time chega por envelope `secret`
  * endereçado — ver `privateSecrets`.
+ *
+ * Telefone sem fio: durante o `writing` as correntes vão sem texto (só quem entregou
+ * em cada passo) e sem o começo sugerido; a tarefa de cada um vai endereçada.
+ * Em `reveal`/`voting`/`result` as correntes completas são públicas.
  */
 export function toPublicState(state: GameState, now: number = Date.now()): GameState {
   const r = state.round;
-  if (state.phase !== 'round-play' || r?.kind !== 'leilao' || r.stage !== 'bidding') {
-    return { ...state, now };
+  if (state.phase !== 'round-play' || !r) return { ...state, now };
+  if (r.kind === 'leilao' && r.stage === 'bidding') {
+    return {
+      ...state,
+      now,
+      secrets: hideSecrets(state.secrets),
+      round: { ...r, bids: { red: null, blue: null }, bidAt: { red: null, blue: null } },
+    };
   }
-  const secrets: Record<string, PlayerSecret> = {};
-  for (const [id, secret] of Object.entries(state.secrets)) {
-    secrets[id] = secret.kind === 'leilao-bid' ? { kind: 'none' } : secret;
+  if (r.kind === 'telefone' && r.stage === 'writing') {
+    return {
+      ...state,
+      now,
+      secrets: hideSecrets(state.secrets),
+      round: {
+        ...r,
+        chains: r.chains.map((c) => ({
+          ...c,
+          suggestion: '',
+          entries: c.entries.map((e) => ({ ...e, text: '' })),
+        })),
+      },
+    };
   }
-  return {
-    ...state,
-    now,
-    secrets,
-    round: { ...r, bids: { red: null, blue: null }, bidAt: { red: null, blue: null } },
-  };
+  return { ...state, now };
 }
 
 /** Segredos que NÃO podem ir no broadcast: a TV manda um envelope `secret` por destinatário. */
 export function privateSecrets(state: GameState): { playerId: string; secret: PlayerSecret }[] {
   return Object.entries(state.secrets)
-    .filter(([, secret]) => secret.kind === 'leilao-bid')
+    .filter(([, secret]) => isPrivateSecret(secret))
     .map(([playerId, secret]) => ({ playerId, secret }));
 }
 

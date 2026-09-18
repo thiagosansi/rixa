@@ -16,6 +16,8 @@ function totalMsFor(game: GameState): number | undefined {
       return r.stage === 'reveal' ? mentirosoRevealMs(r.options.length) : DURATIONS.mentiroso[r.stage];
     case 'leilao':
       return DURATIONS.leilao[r.stage];
+    case 'telefone':
+      return r.stage === 'writing' ? DURATIONS.telefone.step : DURATIONS.telefone[r.stage];
     case 'relampago':
       return r.revealed ? DURATIONS.relampago.reveal : DURATIONS.relampago.question;
   }

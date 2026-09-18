@@ -27,6 +27,7 @@ import { MimicaScreen } from '@/components/tv/MimicaScreen';
 import { TabuScreen } from '@/components/tv/TabuScreen';
 import { MentirosoScreen } from '@/components/tv/MentirosoScreen';
 import { LeilaoScreen } from '@/components/tv/LeilaoScreen';
+import { TelefoneScreen } from '@/components/tv/TelefoneScreen';
 import { RelampagoScreen } from '@/components/tv/RelampagoScreen';
 
 const DECK_OPTIONS: DeckMode[] = ['familia', 'sem-filtro'];
@@ -371,6 +372,8 @@ function RoundPlay({
       return <MentirosoScreen game={game} round={round} content={content} />;
     case 'leilao':
       return <LeilaoScreen game={game} round={round} content={content} onNext={onNext} />;
+    case 'telefone':
+      return <TelefoneScreen game={game} round={round} onNext={onNext} />;
     case 'relampago':
       return <RelampagoScreen game={game} round={round} content={content} />;
   }

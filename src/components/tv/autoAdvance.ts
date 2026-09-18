@@ -1,4 +1,5 @@
 import type { GameState } from '@/game/types';
+import { telefoneAllSubmitted, telefoneAllVoted } from '@/game/engine';
 
 export type AutoAdvance = { key: string; delayMs: number };
 
@@ -28,6 +29,12 @@ export function autoAdvanceFor(game: GameState): AutoAdvance | null {
     if (!r.revealed && table.every((p) => Boolean(r.answers[p.id]))) {
       return { key: `${tag}:r:${r.questionNumber}`, delayMs: 900 };
     }
+    return null;
+  }
+
+  if (r.kind === 'telefone') {
+    if (telefoneAllSubmitted(r)) return { key: `${tag}:t:writing:${r.step}`, delayMs: 1500 };
+    if (telefoneAllVoted(r)) return { key: `${tag}:t:voting`, delayMs: 1500 };
     return null;
   }
 

@@ -387,10 +387,42 @@ const relampago = [
   { text: 'O que é um "dry martini" além de gim?', options: ['Licor de laranja', 'Vermute seco', 'Xarope de açúcar', 'Água tônica'], answerIndex: 1 },
 ];
 
+// ---------------------------------------------------------------------------
+// TELEFONE SEM FIO — 25 começos de frase (inspiração/placeholder para a frase inicial)
+// ---------------------------------------------------------------------------
+const telefone: string[] = [
+  'Acordei de ressaca, olhei pro lado e vi…',
+  'O date do Tinder chegou no bar vestido de…',
+  'Na despedida de solteiro, o noivo acabou…',
+  'Minha ex mandou mensagem às quatro da manhã dizendo…',
+  'Depois do sexto chope, meu amigo subiu na mesa e…',
+  'Meu namorado abriu meu celular e encontrou…',
+  'A sogra chegou sem avisar e nos pegou…',
+  'O motorista do Uber olhou pelo retrovisor e viu…',
+  'No banheiro da balada, um desconhecido me pediu…',
+  'A festa da firma terminou com o estagiário…',
+  'No Carnaval, perdi meus amigos e acabei…',
+  'Minha mãe entrou no quarto sem bater e…',
+  'No réveillon, pulei sete ondas e voltei com…',
+  'O buffet do casamento acabou e os convidados…',
+  'Meu vizinho de porta me viu no corredor…',
+  'Bebi um vinho barato e passei a noite…',
+  'O crush respondeu meu story mandando…',
+  'No churrasco, o cunhado bêbado resolveu…',
+  'Peguei o telefone errado e mandei pro chefe…',
+  'No motel, a recepcionista olhou pra gente e…',
+  'Depois de três tequilas, tatuei…',
+  'Na terapia de casal, minha esposa confessou…',
+  'Na piscina do hotel, o salva-vidas gritou porque…',
+  'Liguei a câmera na reunião online sem perceber que…',
+  'Fui na farmácia às duas da manhã comprar…',
+];
+
 export const semFiltro: Deck = {
   mimica,
   tabu,
   mentiroso,
   leilao,
   relampago,
+  telefone,
 };

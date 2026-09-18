@@ -1,11 +1,19 @@
 # RIXA
 
-Jogo de festa para a sala de casa: um **torneio de 5 rodadas** entre dois times (Vermelho x Azul).
+Jogo de festa para a sala de casa: um **torneio de 6 rodadas** entre dois times (Vermelho x Azul).
 A **TV** mostra o jogo e é a autoridade da partida; cada pessoa joga pelo **celular**.
 São **2 baralhos**: _Família_ e _Sem filtro_ — escolha no lobby.
 
-Rodadas: Mímica · Tabu de Boteco · Mentiroso · Leilão · Relâmpago (a última vale triplo).
-Precisa de 4+ pessoas e os dois times preenchidos.
+## As 6 rodadas
+
+1. **Mímica** — um jogador do time vê a palavra no celular e faz mímica; o resto do time digita os palpites (150 por acerto).
+2. **Tabu de Boteco** — explique a palavra sem dizer as proibidas; o time adversário é o juiz (100 por acerto, -50 por deslize).
+3. **Mentiroso** — todo mundo inventa uma resposta falsa e depois vota; enganar adversários e achar a verdade dão pontos.
+4. **Leilão** — lance secreto de quantos itens de uma categoria o time consegue listar; o maior lance encara o desafio.
+5. **Telefone sem fio** — uma frase vira emojis, os emojis viram frase, e a TV revela a corrente se deformando; vota-se na mais engraçada.
+6. **Relâmpago 3x** — quiz de múltipla escolha para todo mundo, com bônus de velocidade e **tudo valendo triplo**.
+
+Precisa de 4+ pessoas e os dois times preenchidos. Um torneio completo leva **~40 min com 6 pessoas**.
 
 ## Rodar em casa
 

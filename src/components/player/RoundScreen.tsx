@@ -5,6 +5,7 @@ import { MimicaRound } from './MimicaRound';
 import { TabuRound } from './TabuRound';
 import { MentirosoRound } from './MentirosoRound';
 import { LeilaoRound } from './LeilaoRound';
+import { TelefoneRound } from './TelefoneRound';
 import { RelampagoRound } from './RelampagoRound';
 import { WaitingCard } from './WaitingCard';
 
@@ -23,6 +24,8 @@ export function RoundScreen(props: RoundProps) {
       return <MentirosoRound key={round.questionIndex} {...props} round={round} />;
     case 'leilao':
       return <LeilaoRound key={round.categoryIndex} {...props} round={round} />;
+    case 'telefone':
+      return <TelefoneRound key={`${round.stage}-${round.step}`} {...props} round={round} />;
     case 'relampago':
       return <RelampagoRound key={round.questionIndex} {...props} round={round} />;
   }

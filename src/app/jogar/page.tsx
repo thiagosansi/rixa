@@ -123,16 +123,23 @@ export default function JogarPage() {
     () => game?.players.find((p) => p.id === playerId) ?? null,
     [game, playerId],
   );
-  const bidding =
-    game?.phase === 'round-play' && game.round?.kind === 'leilao' && game.round.stage === 'bidding';
-  // fora do bidding o segredo endereçado perde a validade
+  const round = game?.phase === 'round-play' ? game.round : null;
+  const bidding = round?.kind === 'leilao' && round.stage === 'bidding';
+  const telefoneWriting = round?.kind === 'telefone' && round.stage === 'writing';
+  const privateStage = bidding || telefoneWriting;
+  // fora do estágio secreto o segredo endereçado perde a validade
   useEffect(() => {
-    if (!bidding) setPrivateSecret(null);
-  }, [bidding]);
+    if (!privateStage) setPrivateSecret(null);
+  }, [privateStage]);
   const secret: PlayerSecret =
     bidding && privateSecret?.kind === 'leilao-bid'
       ? privateSecret
-      : (game?.secrets?.[playerId] ?? { kind: 'none' });
+      : telefoneWriting &&
+          privateSecret?.kind === 'telefone-task' &&
+          round.kind === 'telefone' &&
+          privateSecret.step === round.step
+        ? privateSecret
+        : (game?.secrets?.[playerId] ?? { kind: 'none' });
 
   function enter() {
     const code = normalizeRoomCode(codeInput);

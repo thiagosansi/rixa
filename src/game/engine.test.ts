@@ -13,15 +13,25 @@ import {
   hostApplyHost,
   hostApplyPlayer,
   privateSecrets,
+  telefoneAllSubmitted,
+  telefoneSurvived,
   toPublicState,
+  validateTelefoneText,
 } from './engine';
 import {
+  DURATIONS,
   LEILAO_TOTAL_CATEGORIES,
   MENTIROSO_TOTAL_QUESTIONS,
   POINTS,
   RELAMPAGO_TOTAL_QUESTIONS,
   MIMICA_SKIP_DEBOUNCE_MS,
+  ROUND_ORDER,
   TABU_PENALTY_DEBOUNCE_MS,
+  TELEFONE_AUTO_EMOJI,
+  TELEFONE_AUTO_PHRASE,
+  TOTAL_ROUNDS,
+  multiplierFor,
+  telefoneChainFor,
 } from './rounds';
 
 const DECK: Deck = {
@@ -37,6 +47,7 @@ const DECK: Deck = {
     { question: 'Q4 ____', truth: 'Verdade Quatro' },
   ],
   leilao: [{ category: 'Frutas' }, { category: 'Capitais' }, { category: 'Carros' }],
+  telefone: ['Começo A', 'Começo B', 'Começo C', 'Começo D', 'Começo E'],
   relampago: Array.from({ length: 7 }, (_, i) => ({
     text: `Pergunta ${i}`,
     options: ['A', 'B', 'C', 'D'],
@@ -411,12 +422,331 @@ describe('leilão', () => {
 });
 
 /* ------------------------------------------------------------------ */
+/* telefone sem fio                                                    */
+/* ------------------------------------------------------------------ */
+
+const TELEFONE_ROUND = ROUND_ORDER.indexOf('telefone');
+
+function tele(s: GameState) {
+  return roundOf(s, 'telefone');
+}
+
+/** Todo mundo entrega no passo atual (frase ou emojis conforme o passo) e o host avança. */
+function playStep(s: GameState, textFor?: (id: string, chain: number) => string): GameState {
+  const r = tele(s);
+  const n = r.order.length;
+  r.order.forEach((id, position) => {
+    const chain = telefoneChainFor(position, r.step, n);
+    // frase única por autor (sem palavra em comum: corrente "não sobrevive" por padrão)
+    const text = textFor ? textFor(id, chain) : r.step % 2 === 1 ? '🍕🔥' : `${id}${id}${id}`;
+    s = act(s, id, { type: 'telefone-submit', text });
+  });
+  assert.equal(telefoneAllSubmitted(tele(s)), true, 'todos entregaram');
+  return next(s);
+}
+
+/** Passa por todo o reveal (um passo por vez) até a votação. */
+function revealAll(s: GameState): GameState {
+  for (let guard = 0; guard < 100; guard++) {
+    if (tele(s).stage !== 'reveal') return s;
+    s = next(s);
+  }
+  throw new Error('reveal não terminou');
+}
+
+describe('telefone sem fio', () => {
+  it('é a 5ª rodada, sem multiplicador; a final continua sendo a única 3x', () => {
+    assert.equal(TOTAL_ROUNDS, 6);
+    assert.deepEqual([...ROUND_ORDER], ['mimica', 'tabu', 'mentiroso', 'leilao', 'telefone', 'relampago']);
+    assert.equal(TELEFONE_ROUND, 4);
+    assert.deepEqual([0, 1, 2, 3, 4, 5].map(multiplierFor), [1, 1, 1, 1, 1, 3]);
+    const s = playAt(table(2, 2), TELEFONE_ROUND);
+    assert.equal(s.multiplier, 1);
+    assert.equal(tele(s).stage, 'writing');
+  });
+
+  for (const [red, blue, steps] of [
+    [2, 2, 3],
+    [3, 4, 5],
+  ] as const) {
+    it(`rotação ${red + blue} jogadores / ${steps} passos: ninguém repete corrente, 1 lance por corrente por passo`, () => {
+      let s = playAt(table(red, blue), TELEFONE_ROUND);
+      s = act(s, 'x', { type: 'join', name: 'espectador' }); // sem time: fica de fora
+      const r0 = tele(s);
+      const n = red + blue;
+      assert.equal(r0.order.length, n);
+      assert.equal(r0.steps, steps);
+      assert.equal(r0.chains.length, n);
+      assert.ok(!r0.order.includes('x'));
+      assert.equal(new Set(r0.order).size, n, 'ordem sem repetição');
+      r0.chains.forEach((c, i) => {
+        assert.equal(c.starterId, r0.order[i]);
+        assert.equal(c.starterTeam, r0.order[i].startsWith('r') ? 'red' : 'blue');
+        assert.ok(c.suggestion.startsWith('Começo '));
+      });
+
+      const visited = new Map<string, Set<number>>();
+      for (let k = 0; k < steps; k++) {
+        const r = tele(s);
+        assert.equal(r.step, k);
+        // a tarefa de cada um aponta pra corrente (i + k) mod N e traz só o lance anterior
+        r.order.forEach((id, position) => {
+          const expected = (position + k) % n;
+          const secret = s.secrets[id];
+          assert.ok(secret.kind === 'telefone-task', `${id} tem tarefa`);
+          assert.equal(secret.chainIndex, expected);
+          assert.equal(secret.step, k);
+          assert.equal(secret.mode, k % 2 === 1 ? 'emoji' : 'phrase');
+          if (k === 0) {
+            assert.equal(secret.input, null);
+            assert.equal(secret.starter, r.chains[expected].suggestion);
+          } else {
+            assert.equal(secret.input, r.chains[expected].entries[k - 1].text);
+            assert.equal(secret.starter, null);
+          }
+          const seen = visited.get(id) ?? new Set<number>();
+          assert.ok(!seen.has(expected), `${id} repetiu a corrente ${expected}`);
+          seen.add(expected);
+          visited.set(id, seen);
+        });
+        assert.equal(s.secrets.x.kind, 'none', 'espectador não recebe tarefa');
+        assert.equal(act(s, 'x', { type: 'telefone-submit', text: 'intruso na corrente' }), s);
+        s = playStep(s);
+      }
+      const done = tele(s);
+      assert.equal(done.stage, 'reveal');
+      for (const c of done.chains) {
+        assert.equal(c.entries.length, steps, 'exatamente 1 lance por passo');
+        c.entries.forEach((e, k) => {
+          assert.equal(e.mode, k % 2 === 1 ? 'emoji' : 'phrase');
+          assert.equal(e.auto, false);
+          assert.equal(done.order.indexOf(e.playerId) >= 0, true);
+        });
+        assert.equal(new Set(c.entries.map((e) => e.playerId)).size, steps, 'pessoas diferentes em cada passo');
+      }
+    });
+  }
+
+  it('validação: emoji aceita só emojis (1 a 12); frase de 3 a 120 caracteres', () => {
+    assert.equal(validateTelefoneText('🍕🔥 👨‍👩‍👧', 'emoji'), '🍕🔥 👨‍👩‍👧');
+    assert.equal(validateTelefoneText('🇧🇷', 'emoji'), '🇧🇷');
+    assert.equal(validateTelefoneText('1️⃣', 'emoji'), '1️⃣');
+    assert.equal(validateTelefoneText('  👍🏽  ❤️‍🔥 ', 'emoji'), '👍🏽 ❤️‍🔥');
+    assert.equal(validateTelefoneText('abc', 'emoji'), null);
+    assert.equal(validateTelefoneText('🍕 legal', 'emoji'), null);
+    assert.equal(validateTelefoneText('', 'emoji'), null);
+    assert.equal(validateTelefoneText('   ', 'emoji'), null);
+    assert.equal(validateTelefoneText('😀'.repeat(13), 'emoji'), null);
+    assert.equal(validateTelefoneText('😀'.repeat(12), 'emoji'), '😀'.repeat(12));
+    assert.equal(validateTelefoneText('ab', 'phrase'), null);
+    assert.equal(validateTelefoneText('  ab ', 'phrase'), null);
+    assert.equal(validateTelefoneText('abc', 'phrase'), 'abc');
+    assert.equal(validateTelefoneText('  o   gato  ', 'phrase'), 'o gato');
+    assert.equal(validateTelefoneText('x'.repeat(121), 'phrase'), null);
+
+    // no engine, não só na UI: passo 0 é frase, passo 1 é emoji
+    let s = playAt(table(2, 2), TELEFONE_ROUND);
+    assert.equal(act(s, 'r1', { type: 'telefone-submit', text: 'ab' }), s, 'frase de 2 chars');
+    assert.equal(act(s, 'r1', { type: 'telefone-submit', text: '🍕' }), s, 'emoji no passo de frase (1 char)');
+    s = act(s, 'r1', { type: 'telefone-submit', text: 'primeira versão' });
+    s = act(s, 'r1', { type: 'telefone-submit', text: 'segunda versão' }); // reenvio substitui
+    const chain0 = telefoneChainFor(tele(s).order.indexOf('r1'), 0, 4);
+    assert.deepEqual(tele(s).chains[chain0].entries, [
+      { playerId: 'r1', text: 'segunda versão', mode: 'phrase', auto: false },
+    ]);
+    s = playStep(s);
+    assert.equal(tele(s).step, 1);
+    assert.equal(act(s, 'r1', { type: 'telefone-submit', text: 'abc' }), s, 'letras no passo de emoji');
+    assert.equal(act(s, 'r1', { type: 'telefone-submit', text: '🍕 legal' }), s);
+    assert.equal(act(s, 'r1', { type: 'telefone-submit', text: '😀'.repeat(13) }), s);
+    assert.notEqual(act(s, 'r1', { type: 'telefone-submit', text: '🍕🔥 👨‍👩‍👧' }), s);
+  });
+
+  it('prazo estourado: quem não entregou recebe lance automático; tick avança', () => {
+    let s = playAt(table(2, 2), TELEFONE_ROUND);
+    s = act(s, 'r1', { type: 'telefone-submit', text: 'só o r1 entregou' });
+    assert.equal(host(s, { type: 'tick' }), s, 'antes do prazo o tick não faz nada');
+    advance(DURATIONS.telefone.step + 1);
+    s = host(s, { type: 'tick' });
+    let r = tele(s);
+    assert.equal(r.step, 1);
+    assert.equal(r.deadline, clock + DURATIONS.telefone.step);
+    for (const c of r.chains) {
+      const e = c.entries[0];
+      if (e.playerId === 'r1') assert.deepEqual(e, { playerId: 'r1', text: 'só o r1 entregou', mode: 'phrase', auto: false });
+      else assert.deepEqual(e, { playerId: e.playerId, text: TELEFONE_AUTO_PHRASE, mode: 'phrase', auto: true });
+    }
+    // passo de emoji: automático é 🤷
+    advance(DURATIONS.telefone.step + 1);
+    s = host(s, { type: 'tick' });
+    r = tele(s);
+    assert.equal(r.step, 2);
+    assert.ok(r.chains.every((c) => c.entries[1].text === TELEFONE_AUTO_EMOJI && c.entries[1].auto));
+    // último passo estourado: vai pro reveal
+    advance(DURATIONS.telefone.step + 1);
+    s = host(s, { type: 'tick' });
+    r = tele(s);
+    assert.equal(r.stage, 'reveal');
+    assert.deepEqual([r.revealChain, r.revealStep], [0, 0]);
+    assert.equal(r.survived.length, 4);
+    // reveal anda sozinho a cada 4s e um passo por vez no next-phase
+    assert.equal(host(s, { type: 'tick' }), s);
+    advance(DURATIONS.telefone.reveal + 1);
+    s = host(s, { type: 'tick' });
+    assert.deepEqual([tele(s).revealChain, tele(s).revealStep], [0, 1]);
+    s = next(s);
+    assert.deepEqual([tele(s).revealChain, tele(s).revealStep], [0, 2]);
+    s = next(s);
+    assert.deepEqual([tele(s).revealChain, tele(s).revealStep], [1, 0]);
+    s = revealAll(s);
+    assert.equal(tele(s).stage, 'voting');
+    // votação estourada sem votos: resultado sem bônus, depois fecha a rodada
+    advance(DURATIONS.telefone.voting + 1);
+    s = host(s, { type: 'tick' });
+    assert.equal(tele(s).stage, 'result');
+    assert.deepEqual(tele(s).ranking, []);
+    assert.deepEqual(s.scores, { red: 0, blue: 0 });
+    advance(DURATIONS.telefone.result + 1);
+    s = host(s, { type: 'tick' });
+    assert.equal(s.phase, 'round-result');
+  });
+
+  it('sobrevivência: >= 50% das palavras significativas (4+ letras) da frase inicial', () => {
+    const chain = (first: string, last: string, auto = false) => ({
+      starterId: 'r1',
+      starterTeam: 'red' as const,
+      suggestion: '',
+      entries: [
+        { playerId: 'r1', text: first, mode: 'phrase' as const, auto: false },
+        { playerId: 'b1', text: '🍕', mode: 'emoji' as const, auto: false },
+        { playerId: 'r2', text: last, mode: 'phrase' as const, auto },
+      ],
+    });
+    assert.equal(telefoneSurvived(chain('O gato subiu no telhado', 'O gato subiu no telhado')), true, 'igual');
+    assert.equal(telefoneSurvived(chain('O gato subiu no telhado', 'o GATO caiu do TELHADO!')), true, 'igual normalizada');
+    // significativas: gato, subiu, telhado, madrugada (4) — 2 de 4 = 50%
+    assert.equal(telefoneSurvived(chain('O gato subiu no telhado de madrugada', 'um gato no telhado')), true, '50%');
+    // 1 de 4 = 25%
+    assert.equal(telefoneSurvived(chain('O gato subiu no telhado de madrugada', 'um gato na chuva')), false, 'abaixo de 50%');
+    assert.equal(telefoneSurvived(chain('O gato subiu no telhado', 'pizza com abacaxi')), false, 'nada em comum');
+    assert.equal(telefoneSurvived(chain('O gato subiu no telhado', 'O gato subiu no telhado', true)), false, 'ponta automática não conta');
+    assert.equal(telefoneSurvived(chain('eu vi o sol', 'eu vi o sol')), true, 'sem palavra de 4+ letras: compara tudo');
+  });
+
+  it('votação e pontuação: 200 pra mais votada, 100 pra segunda, 75 por sobrevivente pra cada time', () => {
+    let s = playAt(table(3, 4), TELEFONE_ROUND); // 7 pessoas, 5 passos
+    const r0 = tele(s);
+    assert.equal(r0.order.length, 7);
+    // corrente 0 sobrevive (frase final igual), as outras não
+    const phraseFor = (id: string, chain: number) => (chain === 0 ? 'A vaca foi pro brejo' : `${id}${id}${id}`);
+    for (let k = 0; k < 5; k++) s = playStep(s, (id, chain) => (k % 2 === 1 ? '🐄' : phraseFor(id, chain)));
+    let r = tele(s);
+    assert.equal(r.stage, 'reveal');
+    assert.equal(r.survived[0], true);
+    assert.ok(r.survived.slice(1).every((x) => !x));
+    s = revealAll(s);
+    r = tele(s);
+    assert.equal(r.stage, 'voting');
+
+    const starterOf = (chain: number) => r0.order[chain];
+    const voters = r0.order;
+    // quem começou a corrente 0 não pode votar nela
+    assert.equal(act(s, starterOf(0), { type: 'telefone-vote', chainIndex: 0 }), s, 'própria corrente');
+    assert.equal(act(s, voters[0], { type: 'telefone-vote', chainIndex: 99 }), s, 'corrente inexistente');
+    assert.equal(act(s, 'x', { type: 'telefone-vote', chainIndex: 1 }), s, 'espectador');
+    // corrente 1 recebe 3 votos, corrente 2 recebe 2, corrente 3 recebe 1 (ninguém vota na própria)
+    const plan = new Map<string, number>();
+    for (const target of [1, 1, 1, 2, 2, 3]) {
+      const voter = voters.find((id) => !plan.has(id) && starterOf(target) !== id);
+      assert.ok(voter);
+      plan.set(voter, target);
+    }
+    for (const [voter, target] of plan) s = act(s, voter, { type: 'telefone-vote', chainIndex: target });
+    const voted = s;
+    const [firstVoter] = plan.keys();
+    assert.equal(act(s, firstVoter, { type: 'telefone-vote', chainIndex: 2 }), voted, 'voto é único');
+
+    s = next(s);
+    r = tele(s);
+    assert.equal(r.stage, 'result');
+    assert.deepEqual(r.ranking, [1, 2, 3]);
+    const expected = { red: 75, blue: 75 };
+    expected[r0.chains[1].starterTeam] += POINTS.telefoneFirst;
+    expected[r0.chains[2].starterTeam] += POINTS.telefoneSecond;
+    assert.deepEqual(s.scores, expected);
+    s = next(s);
+    assert.equal(s.phase, 'round-result');
+    assert.deepEqual(s.roundLog.at(-1)?.kind, 'telefone');
+  });
+
+  it('empate em 1º: todas levam 200 e não há 2º', () => {
+    let s = playAt(table(2, 2), TELEFONE_ROUND);
+    const order = tele(s).order;
+    for (let k = 0; k < 3; k++) s = playStep(s);
+    s = revealAll(s);
+    assert.equal(tele(s).stage, 'voting');
+    // correntes 0 e 1 com 1 voto cada, corrente 2 com 1 voto também? não: 0 e 1 empatam, 2 fica sem voto
+    const starter = (c: number) => order[c];
+    const voterFor = (c: number, used: Set<string>) => order.find((id) => id !== starter(c) && !used.has(id))!;
+    const used = new Set<string>();
+    const v0 = voterFor(0, used); used.add(v0);
+    const v1 = voterFor(1, used); used.add(v1);
+    s = act(s, v0, { type: 'telefone-vote', chainIndex: 0 });
+    s = act(s, v1, { type: 'telefone-vote', chainIndex: 1 });
+    s = next(s);
+    const r = tele(s);
+    assert.deepEqual(r.ranking, [0, 1]);
+    const survivors = r.survived.filter(Boolean).length; // frases diferentes em cada passo: 0
+    assert.equal(survivors, 0);
+    const expected = { red: 0, blue: 0 };
+    expected[r.chains[0].starterTeam] += POINTS.telefoneFirst;
+    expected[r.chains[1].starterTeam] += POINTS.telefoneFirst;
+    assert.deepEqual(s.scores, expected);
+  });
+
+  it('estado público: nenhum texto de corrente (nem sugestão, nem tarefa) sai no broadcast durante o writing', () => {
+    let s = playAt(table(2, 2), TELEFONE_ROUND);
+    s = act(s, 'r1', { type: 'telefone-submit', text: 'segredo absoluto do r1' });
+    s = playStep(s, () => 'texto secretíssimo da corrente');
+    s = act(s, 'b1', { type: 'telefone-submit', text: '🍕🔥' });
+
+    const pub = toPublicState(s, 123);
+    const pr = roundOf(pub, 'telefone');
+    const json = JSON.stringify({ r: pub.round, s: pub.secrets });
+    assert.ok(!/secret|Começo|🍕/.test(json), 'sem texto no público: ' + json.slice(0, 200));
+    assert.ok(pr.chains.every((c) => c.suggestion === '' && c.entries.every((e) => e.text === '')));
+    assert.ok(Object.values(pub.secrets).every((x) => x.kind === 'none'));
+    // progresso continua visível: quem já entregou o passo atual
+    const done = pr.chains.filter((c) => c.entries[1]).map((c) => c.entries[1].playerId);
+    assert.deepEqual(done, ['b1']);
+    assert.equal(pr.chains.every((c) => c.entries[0]?.playerId), true);
+
+    // a tarefa vai endereçada, uma por participante
+    const mine = privateSecrets(s);
+    assert.equal(mine.length, 4);
+    for (const { playerId, secret } of mine) {
+      assert.equal(secret.kind, 'telefone-task');
+      assert.ok(secret.kind === 'telefone-task' && secret.step === 1 && secret.mode === 'emoji');
+      assert.ok(secret.kind === 'telefone-task' && secret.input === 'texto secretíssimo da corrente');
+      assert.ok(tele(s).order.includes(playerId));
+    }
+
+    // no reveal as correntes viram públicas e não há mais segredo endereçado
+    s = playStep(s, () => '🐄');
+    s = playStep(s, () => 'frase final qualquer');
+    assert.equal(tele(s).stage, 'reveal');
+    assert.equal(roundOf(toPublicState(s), 'telefone').chains[0].entries[0].text, 'texto secretíssimo da corrente');
+    assert.deepEqual(privateSecrets(s), []);
+  });
+});
+
+/* ------------------------------------------------------------------ */
 /* relâmpago                                                           */
 /* ------------------------------------------------------------------ */
 
 describe('relâmpago', () => {
   it('pontua a MÉDIA do time (1x3) e aplica 3x', () => {
-    let s = playAt(table(1, 3), 4);
+    let s = playAt(table(1, 3), 5);
     assert.equal(s.multiplier, 3);
     const r = roundOf(s, 'relampago');
     assert.equal(r.totalQuestions, RELAMPAGO_TOTAL_QUESTIONS);
@@ -437,7 +767,7 @@ describe('relâmpago', () => {
   });
 
   it('teto teórico da final: 6 x 150 x 3 = 2700, independente do tamanho do time', () => {
-    let s = playAt(table(3, 4), 4);
+    let s = playAt(table(3, 4), 5);
     for (let q = 0; q < RELAMPAGO_TOTAL_QUESTIONS; q++) {
       const right = at(DECK.relampago, roundOf(s, 'relampago').questionIndex).answerIndex;
       for (const p of s.players) s = act(s, p.id, { type: 'answer-choice', choice: right });
@@ -456,6 +786,7 @@ describe('relâmpago', () => {
 describe('torneio completo (3 x 4)', () => {
   it('o placar final bate com o cálculo esperado, rodada a rodada', () => {
     let s = host(table(3, 4), { type: 'start-game' });
+    let telefoneDelta = { red: 0, blue: 0 };
     const guessRight = (st: GameState): GameState => {
       const r = st.round;
       assert.ok(r && (r.kind === 'mimica' || r.kind === 'tabu'));
@@ -557,8 +888,67 @@ describe('torneio completo (3 x 4)', () => {
     assert.equal(s.phase, 'round-result');
     assert.deepEqual(s.roundLog[3].delta, { red: 450, blue: 0 });
 
-    /* R5 relâmpago — 6 perguntas, média do time, 3x */
+    /* R5 telefone sem fio — 7 pessoas, 5 passos; r3 deixa o prazo do passo 2 estourar */
     s = next(next(s));
+    assert.equal(s.multiplier, 1, 'o telefone não é a final');
+    {
+      const r0 = tele(s);
+      assert.equal(r0.steps, 5);
+      const chainOf = (id: string, step: number) => telefoneChainFor(r0.order.indexOf(id), step, 7);
+      // corrente 0 sobrevive (frase inicial e final iguais); as outras viram frases únicas por autor
+      const phrase = (id: string, chain: number) => (chain === 0 ? 'Cachorro comeu o bolo da festa' : `${id}${id}${id}`);
+      const emoji = (id: string) => (id.startsWith('r') ? '🐶🎂' : '🎉🍰 🐕');
+      for (let k = 0; k < 5; k++) {
+        const r = tele(s);
+        assert.equal(r.step, k);
+        for (const id of r.order) {
+          if (k === 2 && id === 'r3') continue; // r3 dorme no ponto
+          s = act(s, id, { type: 'telefone-submit', text: k % 2 === 1 ? emoji(id) : phrase(id, chainOf(id, k)) });
+        }
+        if (k === 2) {
+          assert.equal(telefoneAllSubmitted(tele(s)), false);
+          advance(DURATIONS.telefone.step + 1);
+          s = host(s, { type: 'tick' });
+          const filled = tele(s).chains[chainOf('r3', 2)].entries[2];
+          assert.deepEqual(filled, { playerId: 'r3', text: TELEFONE_AUTO_PHRASE, mode: 'phrase', auto: true });
+        } else {
+          assert.equal(telefoneAllSubmitted(tele(s)), true);
+          s = next(s);
+        }
+      }
+      let r = tele(s);
+      assert.equal(r.stage, 'reveal');
+      // o lance automático caiu no meio (passo 2), não nas pontas: a corrente 0 sobrevive
+      assert.equal(r.survived[0], true);
+      assert.equal(r.survived.filter(Boolean).length, 1);
+      s = revealAll(s);
+      r = tele(s);
+      assert.equal(r.stage, 'voting');
+      // votos: 3 na corrente 1, 2 na corrente 2, 1 na 3; b4 não vota
+      const starter = (c: number) => r0.order[c];
+      const plan = new Map<string, number>();
+      for (const target of [1, 1, 1, 2, 2, 3]) {
+        const voter = r0.order.find((id) => id !== 'b4' && !plan.has(id) && starter(target) !== id);
+        assert.ok(voter);
+        plan.set(voter, target);
+      }
+      for (const [voter, target] of plan) s = act(s, voter, { type: 'telefone-vote', chainIndex: target });
+      s = next(s);
+      r = tele(s);
+      assert.equal(r.stage, 'result');
+      assert.deepEqual(r.ranking, [1, 2, 3]);
+      const expected = { red: 75, blue: 75 };
+      expected[r0.chains[1].starterTeam] += 200;
+      expected[r0.chains[2].starterTeam] += 100;
+      s = next(s);
+      assert.equal(s.phase, 'round-result');
+      assert.deepEqual(s.roundLog[4].delta, expected);
+      telefoneDelta = expected;
+    }
+
+    /* R6 relâmpago — 6 perguntas, média do time, 3x */
+    s = next(next(s));
+    assert.equal(s.multiplier, 3);
     const answer = (st: GameState, ids: string[], how: 'right' | 'wrong'): GameState => {
       const right = at(DECK.relampago, roundOf(st, 'relampago').questionIndex).answerIndex;
       for (const id of ids) {
@@ -588,12 +978,17 @@ describe('torneio completo (3 x 4)', () => {
       s = next(next(s));
     }
     assert.equal(s.phase, 'round-result');
-    assert.deepEqual(s.roundLog[4].delta, { red: 450 + 126 + 450, blue: 207 + 300 + 450 });
+    assert.deepEqual(s.roundLog[5].delta, { red: 450 + 126 + 450, blue: 207 + 300 + 450 });
 
     s = next(s);
     assert.equal(s.phase, 'game-over');
-    assert.deepEqual(s.scores, { red: 300 + 200 + 725 + 450 + 1026, blue: 150 + 200 + 750 + 0 + 957 });
-    assert.deepEqual(s.scores, { red: 2701, blue: 2057 });
+    assert.equal(s.roundLog.length, 6);
+    assert.deepEqual(s.scores, {
+      red: 300 + 200 + 725 + 450 + telefoneDelta.red + 1026,
+      blue: 150 + 200 + 750 + 0 + telefoneDelta.blue + 957,
+    });
+    assert.equal(telefoneDelta.red + telefoneDelta.blue, 450, 'telefone distribuiu 75+75+200+100');
+    assert.deepEqual(s.scores, { red: 2701 + telefoneDelta.red, blue: 2057 + telefoneDelta.blue });
     const logged = s.roundLog.reduce(
       (acc, e) => ({ red: acc.red + e.delta.red, blue: acc.blue + e.delta.blue }),
       { red: 0, blue: 0 },

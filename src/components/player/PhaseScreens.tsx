@@ -29,6 +29,9 @@ function myRoleText(game: GameState, me: Player, team: TeamId): string {
   }
   if (kind === 'mentiroso') return 'Você escreve uma mentira convincente e depois vota tentando achar a verdade.';
   if (kind === 'leilao') return 'Você dá o lance do seu time. Quem prometer mais, lista; o outro time julga.';
+  if (kind === 'telefone') {
+    return 'Você começa uma frase no celular. Depois recebe a frase de outra pessoa pra virar emojis, e emojis pra traduzir. No fim, vote na corrente mais engraçada.';
+  }
   return 'Todo mundo responde no próprio celular. Rapidez dá bônus e tudo vale 3x.';
 }
 

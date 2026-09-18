@@ -1,11 +1,12 @@
 import type { GameState, Player, RoundKind, RoundState, TeamId, TurnTally } from './types';
 
-/** Ordem fixa do torneio: roundIndex 0..4 */
+/** Ordem fixa do torneio: roundIndex 0..5 */
 export const ROUND_ORDER: readonly RoundKind[] = [
   'mimica',
   'tabu',
   'mentiroso',
   'leilao',
+  'telefone',
   'relampago',
 ] as const;
 
@@ -59,6 +60,16 @@ export const ROUND_INFO: Record<RoundKind, RoundInfo> = {
       'Conseguiu: lance x50 pontos. Falhou: o adversário leva.',
     ],
   },
+  telefone: {
+    kind: 'telefone',
+    title: 'Telefone sem fio',
+    tagline: 'Uma frase vira emojis, os emojis viram frase… e ninguém vê a corrente inteira.',
+    rules: [
+      'Cada um começa uma frase. Ela passa de celular em celular: reescreva SÓ com emojis, depois traduza de volta.',
+      'No fim a TV revela as correntes. Todo mundo vota na mais engraçada (não vale a sua).',
+      'Frase que chegou inteira: +75 pra cada time. Mais votada: +200 · segunda: +100 pro time de quem começou.',
+    ],
+  },
   relampago: {
     kind: 'relampago',
     title: 'Relâmpago',
@@ -77,6 +88,7 @@ export const DURATIONS = {
   tabu: { turn: 60_000 },
   mentiroso: { writing: 45_000, voting: 30_000, reveal: 12_000 },
   leilao: { bidding: 30_000, challenge: 90_000, judging: 60_000 },
+  telefone: { step: 45_000, reveal: 4_000, voting: 30_000, result: 15_000 },
   relampago: { question: 12_000, reveal: 5_000 },
 } as const;
 
@@ -85,6 +97,30 @@ export const MENTIROSO_TOTAL_QUESTIONS = 3;
 export const LEILAO_TOTAL_CATEGORIES = 2;
 export const LEILAO_MIN_BID = 1;
 export const LEILAO_MAX_BID = 10;
+/** Telefone sem fio: limites de cada lance. */
+export const TELEFONE_PHRASE_MIN = 3;
+export const TELEFONE_PHRASE_MAX = 120;
+export const TELEFONE_EMOJI_MIN = 1;
+export const TELEFONE_EMOJI_MAX = 12;
+/** Lances automáticos de quem deixou o prazo estourar. */
+export const TELEFONE_AUTO_PHRASE = '(ficou em branco)';
+export const TELEFONE_AUTO_EMOJI = '🤷';
+
+/**
+ * Passos da corrente: sempre ímpar (começa e termina em frase) e menor que o número
+ * de participantes, para ninguém repetir corrente. 5+ pessoas: 5 passos; 3–4: 3;
+ * mesa degenerada de 1–2 (só com espectadores completando os 4): 1.
+ */
+export function telefoneSteps(participants: number): number {
+  if (participants >= 5) return 5;
+  if (participants >= 3) return 3;
+  return 1;
+}
+
+/** Corrente em que o jogador da posição `position` trabalha no passo `step`. */
+export function telefoneChainFor(position: number, step: number, participants: number): number {
+  return (position + step) % participants;
+}
 /** Dois árbitros apertando juntos contam como UMA infração. */
 export const TABU_PENALTY_DEBOUNCE_MS = 1500;
 /** Toque duplo no "Pular" da mímica conta como UM pulo. */
@@ -115,6 +151,8 @@ export function contentSeed(now: number, salt: number): number {
  *  - mentiroso: 3 perguntas; verdade 100, enganar ADVERSÁRIO 75  ≈ 400–750
  *  - leilão:    2 categorias; lance (1..10) x 50 pra quem cumpre
  *               (ou pro rival se falhar)                        ≈ 0–700, típico 300
+ *  - telefone:  de propósito mais leve: corrente sobrevivente 75 pra CADA time;
+ *               mais votada 200, segunda 100 pro time de quem começou ≈ 75–500
  *  - relâmpago: 6 perguntas x MÉDIA do time (0..150) x 3        ≤ 2700, típico 1000–1800
  * Relâmpago usa média (e não soma) para o placar não depender do tamanho do time.
  */
@@ -125,6 +163,9 @@ export const POINTS = {
   mentirosoVoteReceived: 75,
   mentirosoFoundTruth: 100,
   leilaoPerTarget: 50,
+  telefoneSurvive: 75,
+  telefoneFirst: 200,
+  telefoneSecond: 100,
   relampagoCorrect: 100,
   relampagoSpeedBonusMax: 50,
 } as const;
@@ -140,7 +181,7 @@ export function roundKindAt(roundIndex: number): RoundKind {
   return ROUND_ORDER[Math.min(Math.max(roundIndex, 0), TOTAL_ROUNDS - 1)];
 }
 
-/** Rodada final (index 4) vale triplo. */
+/** Rodada final (index 5, relâmpago) vale triplo. */
 export function multiplierFor(roundIndex: number): number {
   return roundIndex === TOTAL_ROUNDS - 1 ? 3 : 1;
 }
@@ -234,6 +275,22 @@ export function initialRoundState(kind: RoundKind, state: GameState, now: number
         deadline: now + DURATIONS.leilao.bidding,
         answers: [],
         accepted: [],
+      };
+    case 'telefone':
+      // `order`/`chains` são montados pelo engine (precisa do embaralhamento determinístico)
+      return {
+        kind: 'telefone',
+        stage: 'writing',
+        order: [],
+        steps: 1,
+        step: 0,
+        chains: [],
+        deadline: now + DURATIONS.telefone.step,
+        revealChain: 0,
+        revealStep: 0,
+        votes: {},
+        survived: [],
+        ranking: [],
       };
     case 'relampago':
       return {
