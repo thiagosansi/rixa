@@ -1,12 +1,13 @@
 import type { GameState, Player, RoundKind, RoundState, TeamId, TurnTally } from './types';
 
-/** Ordem fixa do torneio: roundIndex 0..5 */
+/** Ordem fixa do torneio: roundIndex 0..6 */
 export const ROUND_ORDER: readonly RoundKind[] = [
   'mimica',
   'tabu',
   'mentiroso',
   'leilao',
   'telefone',
+  'detetive',
   'relampago',
 ] as const;
 
@@ -66,8 +67,18 @@ export const ROUND_INFO: Record<RoundKind, RoundInfo> = {
     tagline: 'Uma frase vira emojis, os emojis viram frase… e ninguém vê a corrente inteira.',
     rules: [
       'Cada um começa uma frase. Ela passa de celular em celular: reescreva SÓ com emojis, depois traduza de volta.',
-      'No fim a TV revela as correntes. Todo mundo vota na mais engraçada (não vale a sua).',
+      'No fim a mesa revela as correntes. Todo mundo vota na mais engraçada (não vale a sua).',
       'Frase que chegou inteira: +75 pra cada time. Mais votada: +200 · segunda: +100 pro time de quem começou.',
+    ],
+  },
+  detetive: {
+    kind: 'detetive',
+    title: 'Detetive da Casa',
+    tagline: 'Uma história, pistas secretas e um responsável tentando escapar.',
+    rules: [
+      'Cada pessoa recebe um personagem e uma pista secreta no celular.',
+      'Conversem em voz alta, liberem as pistas da mesa e tentem reconstruir o que aconteceu.',
+      'No fim, vote em quem foi o responsável. Ninguém é eliminado da partida.',
     ],
   },
   relampago: {
@@ -89,6 +100,7 @@ export const DURATIONS = {
   mentiroso: { writing: 45_000, voting: 30_000, reveal: 12_000 },
   leilao: { bidding: 30_000, challenge: 90_000, judging: 60_000 },
   telefone: { step: 45_000, reveal: 4_000, voting: 30_000, result: 15_000 },
+  detetive: { investigation: 45_000, discussion: 45_000, voting: 30_000, reveal: 12_000 },
   relampago: { question: 12_000, reveal: 5_000 },
 } as const;
 
@@ -166,6 +178,8 @@ export const POINTS = {
   telefoneSurvive: 75,
   telefoneFirst: 200,
   telefoneSecond: 100,
+  detetiveFound: 125,
+  detetiveSurvived: 200,
   relampagoCorrect: 100,
   relampagoSpeedBonusMax: 50,
 } as const;
@@ -292,6 +306,23 @@ export function initialRoundState(kind: RoundKind, state: GameState, now: number
         survived: [],
         ranking: [],
       };
+    case 'detetive': {
+      const participants = state.players.filter((p) => p.team !== null);
+      const offset = participants.length > 0 ? contentSeed(now, 7) % participants.length : 0;
+      const order = participants
+        .map((_, i) => participants[(i + offset) % participants.length]?.id ?? '')
+        .filter(Boolean);
+      return {
+        kind: 'detetive',
+        stage: 'investigation',
+        caseIndex: contentSeed(now, 8),
+        order,
+        culpritId: order.length > 0 ? order[contentSeed(now, 9) % order.length] : null,
+        revealedClues: 1,
+        votes: {},
+        deadline: now + DURATIONS.detetive.investigation,
+      };
+    }
     case 'relampago':
       return {
         kind: 'relampago',

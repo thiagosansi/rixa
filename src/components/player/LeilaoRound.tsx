@@ -17,7 +17,7 @@ export function LeilaoRound({ game, team, secret, act, round }: RoundProps & { r
       <div className="display text-xs tracking-[0.2em] text-gold" data-testid="leilao-progress">
         categoria {round.categoryNumber}/{round.totalCategories}
       </div>
-      <p className="display mt-1 text-3xl leading-none text-ink">{cat?.category ?? 'veja na TV'}</p>
+      <p className="display mt-1 text-3xl leading-none text-ink">{cat?.category ?? 'aguarde a mesa'}</p>
       {cat?.hint && <p className="mt-2 text-base text-muted">{cat.hint}</p>}
     </div>
   );

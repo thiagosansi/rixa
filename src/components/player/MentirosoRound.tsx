@@ -10,7 +10,7 @@ import { normalizeText, pickAt, playerName, type RoundProps } from './shared';
 
 export function MentirosoRound({ game, me, team, act, round }: RoundProps & { round: MentirosoState }) {
   const q = pickAt(pickDeck(game.deck).mentiroso, round.questionIndex);
-  const question = q?.question ?? 'Olhe a pergunta na TV';
+  const question = q?.question ?? 'A pergunta será carregada';
   const [warning, setWarning] = useState<string | null>(null);
   const [pendingVote, setPendingVote] = useState<string | null>(null);
 

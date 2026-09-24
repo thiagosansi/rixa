@@ -42,6 +42,7 @@ export function pickJoinOrigin(
   return pageOrigin;
 }
 
-export function buildJoinUrl(origin: string, code: string): string {
-  return `${origin.replace(/\/+$/, '')}/jogar?code=${encodeURIComponent(code)}`;
+export function buildJoinUrl(origin: string, code: string, path = '/jogar'): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${origin.replace(/\/+$/, '')}${normalizedPath}?code=${encodeURIComponent(code)}`;
 }

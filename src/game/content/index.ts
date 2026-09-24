@@ -9,6 +9,15 @@ export type LeilaoCategory = { category: string; hint?: string };
 export type RelampagoQuestion = { text: string; options: string[]; answerIndex: number };
 /** Começo sugerido de uma corrente do telefone sem fio (inspiração/placeholder no passo 0). */
 export type TelefoneStarter = string;
+export type DetectiveCase = {
+  title: string;
+  setting: string;
+  incident: string;
+  publicClues: string[];
+  roleCards: { role: string; clue: string }[];
+  culpritRole: string;
+  solution: string;
+};
 
 export type Deck = {
   mimica: MimicaWord[];
@@ -16,6 +25,7 @@ export type Deck = {
   mentiroso: MentirosoQuestion[];
   leilao: LeilaoCategory[];
   telefone: TelefoneStarter[];
+  detetive: DetectiveCase[];
   relampago: RelampagoQuestion[];
 };
 
@@ -25,6 +35,7 @@ export const EMPTY_DECK: Deck = {
   mentiroso: [],
   leilao: [],
   telefone: [],
+  detetive: [],
   relampago: [],
 };
 
@@ -40,9 +51,13 @@ function isDeck(value: unknown): value is Deck {
   );
 }
 
-/** Baralho antigo (sem `telefone`) continua carregando: a chave vira lista vazia. */
+/** Baralho antigo continua carregando: chaves novas recebem lista vazia. */
 function withDefaults(deck: Deck): Deck {
-  return { ...deck, telefone: Array.isArray(deck.telefone) ? deck.telefone : [] };
+  return {
+    ...deck,
+    telefone: Array.isArray(deck.telefone) ? deck.telefone : [],
+    detetive: Array.isArray(deck.detetive) ? deck.detetive : [],
+  };
 }
 
 /**

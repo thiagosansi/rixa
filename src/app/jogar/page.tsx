@@ -42,7 +42,7 @@ export default function JogarPage() {
   const [nameInput, setNameInput] = useState('');
   const [room, setRoom] = useState<string | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
-  /** segredo que chega endereçado só a mim (lance do meu time no leilão) */
+  /** qualquer segredo que chega endereçado só a mim */
   const [privateSecret, setPrivateSecret] = useState<PlayerSecret | null>(null);
   /** relógio do host − relógio deste celular (ms): celular com hora errada não erra o timer */
   const [clockOffset, setClockOffset] = useState(0);
@@ -68,6 +68,7 @@ export default function JogarPage() {
   }, []);
 
   const handleEnvelope = useCallback((env: Envelope) => {
+    if (env.game === 'cidade') return;
     if (env.t === 'secret') {
       if (env.playerId === playerIdRef.current) setPrivateSecret(env.secret);
       return;
@@ -107,7 +108,7 @@ export default function JogarPage() {
     send({ t: 'act', playerId, action: { type: 'join', name: nameRef.current } });
   }, [room, connected, playerId, send]);
 
-  // heartbeat: a TV sabe quem ainda está na mesa
+  // heartbeat: o anfitrião sabe quem ainda está na mesa
   useEffect(() => {
     if (!room || !connected || !playerId) return;
     const id = setInterval(() => {
@@ -123,23 +124,9 @@ export default function JogarPage() {
     () => game?.players.find((p) => p.id === playerId) ?? null,
     [game, playerId],
   );
-  const round = game?.phase === 'round-play' ? game.round : null;
-  const bidding = round?.kind === 'leilao' && round.stage === 'bidding';
-  const telefoneWriting = round?.kind === 'telefone' && round.stage === 'writing';
-  const privateStage = bidding || telefoneWriting;
-  // fora do estágio secreto o segredo endereçado perde a validade
-  useEffect(() => {
-    if (!privateStage) setPrivateSecret(null);
-  }, [privateStage]);
-  const secret: PlayerSecret =
-    bidding && privateSecret?.kind === 'leilao-bid'
-      ? privateSecret
-      : telefoneWriting &&
-          privateSecret?.kind === 'telefone-task' &&
-          round.kind === 'telefone' &&
-          privateSecret.step === round.step
-        ? privateSecret
-        : (game?.secrets?.[playerId] ?? { kind: 'none' });
+  // O broadcast nunca carrega segredos. O último envelope endereçado é a fonte
+  // principal; o estado público fica apenas como fallback durante a transição.
+  const secret: PlayerSecret = privateSecret ?? game?.secrets?.[playerId] ?? { kind: 'none' };
 
   function enter() {
     const code = normalizeRoomCode(codeInput);
@@ -199,7 +186,7 @@ export default function JogarPage() {
       <main className="player-main mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pt-4">
         {!game && (
           <WaitingCard emoji="📡" title={`Procurando a sala ${room}`}>
-            Confira se a TV está aberta e se o celular está no mesmo WiFi.
+            Confira se a mesa está aberta e se o celular está no mesmo WiFi.
             <button
               type="button"
               className="mt-4 block min-h-14 w-full rounded-2xl border-2 border-line px-4 text-lg text-ink"
@@ -300,7 +287,7 @@ function JoinForm({
       </form>
 
       <p className="text-center text-sm text-muted">
-        Peça o código de 4 letras pra quem está com a TV.
+        Peça o código de 4 letras para quem abriu a mesa.
       </p>
     </main>
   );
@@ -336,7 +323,7 @@ function TeamPicker({
       </div>
       {current && (
         <p className="text-center text-lg text-muted">
-          Beleza. Olhe pra TV e espere o jogo começar.
+          Beleza. Aguarde o anfitrião começar o jogo.
         </p>
       )}
     </section>

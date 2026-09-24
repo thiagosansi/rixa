@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "NODE_ENV=production node server.mjs",
     "lint": "next lint",
-    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve.mjs --test --test-reporter=spec src/game/engine.test.ts src/lib/join-url.test.ts"
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve.mjs --test --test-reporter=spec src/game/engine.test.ts src/cidade/engine.test.ts src/lib/join-url.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",

@@ -155,8 +155,8 @@ wss.on('connection', (ws, req, search) => {
       }
     }
 
-    // sem host na sala (TV caiu): um lance não pode virar broadcast para os celulares
-    if (!to && !hostOnly && env.t === 'act' && env.action?.type === 'bid') return;
+    // sem host na sala: uma ação de jogador não pode virar broadcast para os celulares
+    if (!to && !hostOnly && env.t === 'act' && env.action?.type !== 'join') return;
 
     const payload = JSON.stringify({ room, env });
     for (const peer of peers) {
@@ -206,8 +206,9 @@ heartbeat.unref?.();
 server.listen(port, hostname, () => {
   const ip = lanAddress();
   console.log(`\n  RIXA no ar`);
-  console.log(`  TV        http://localhost:${port}/tv`);
-  console.log(`  Celulares http://${ip}:${port}/jogar`);
+  console.log(`  RIXA      http://localhost:${port}/mesa`);
+  console.log(`  Cidade    http://localhost:${port}/cidade`);
+  console.log(`  Celulares http://${ip}:${port}/jogar ou /cidade/jogar`);
   console.log(`  WebSocket ws://${ip}:${port}/api/ws\n`);
 });
 

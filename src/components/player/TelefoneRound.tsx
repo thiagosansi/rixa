@@ -312,8 +312,8 @@ export function TelefoneRound({ game, me, team, secret, act, round }: RoundProps
 
   if (position < 0) {
     return (
-      <WaitingCard emoji="👀" title="Olha pra TV">
-        Você não está numa corrente nesta rodada — acompanhe a revelação pela TV.
+      <WaitingCard emoji="👀" title="Aguarde a mesa">
+        Você não está numa corrente nesta rodada — acompanhe a revelação nos celulares.
       </WaitingCard>
     );
   }
@@ -395,7 +395,7 @@ export function TelefoneRound({ game, me, team, secret, act, round }: RoundProps
             <p
               className={`break-words text-ink ${emoji ? 'text-4xl leading-[1.2] tracking-[0.06em]' : 'text-lg'}`}
             >
-              {sentText ?? '(sua resposta já está com a TV)'}
+              {sentText ?? '(sua resposta já está com a mesa)'}
             </p>
             <button
               type="button"
@@ -406,7 +406,7 @@ export function TelefoneRound({ game, me, team, secret, act, round }: RoundProps
               Editar
             </button>
             <p className="text-center text-sm text-muted">
-              Olha pra TV 👀 — o passo avança quando todo mundo entregar.
+              Aguarde a mesa 👀 — o passo avança quando todo mundo entregar.
             </p>
           </div>
         ) : emoji ? (
@@ -429,8 +429,8 @@ export function TelefoneRound({ game, me, team, secret, act, round }: RoundProps
     const chain = round.chains[round.revealChain];
     const starter = chain ? playerName(game, chain.starterId) : '';
     return (
-      <WaitingCard emoji="📺" title="Olha pra TV">
-        Revelando as correntes na TV.
+      <WaitingCard emoji="📱" title="Aguarde a mesa">
+        Revelando as correntes nos celulares.
         <br />
         <span className="text-ink" data-testid="telefone-reveal-progress">
           Corrente {round.revealChain + 1} de {round.chains.length}
@@ -565,7 +565,7 @@ export function TelefoneRound({ game, me, team, secret, act, round }: RoundProps
           </div>
         ))}
       </div>
-      <p className="text-center text-lg text-muted">Olha pra TV 👀 — o pódio está lá.</p>
+      <p className="text-center text-lg text-muted">Aguarde a mesa 👀 — o pódio aparece aqui.</p>
     </section>
   );
 }

@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 
 export type WaitingCardProps = {
-  /** manchete: padrão "Olha pra TV" */
+  /** manchete: padrão para quem está aguardando a mesa */
   title?: string;
   emoji?: string;
   /** o que está acontecendo agora */
@@ -20,7 +20,7 @@ const TONES = {
 
 /** Tela de espera: nunca deixa o celular vazio quando não é a vez da pessoa. */
 export function WaitingCard({
-  title = 'Olha pra TV',
+  title = 'Aguarde a mesa',
   emoji = '👀',
   children,
   tone = 'neutral',

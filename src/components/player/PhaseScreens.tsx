@@ -32,6 +32,7 @@ function myRoleText(game: GameState, me: Player, team: TeamId): string {
   if (kind === 'telefone') {
     return 'Você começa uma frase no celular. Depois recebe a frase de outra pessoa pra virar emojis, e emojis pra traduzir. No fim, vote na corrente mais engraçada.';
   }
+  if (kind === 'detetive') return 'Você recebe um personagem e uma pista secreta. Converse, investigue e vote em quem parece responsável.';
   return 'Todo mundo responde no próprio celular. Rapidez dá bônus e tudo vale 3x.';
 }
 
@@ -63,7 +64,7 @@ export function RoundIntroScreen({ game, me, team }: { game: GameState; me: Play
         ))}
       </ul>
 
-      <p className="text-center text-lg text-muted">Olha pra TV 👀 — começa quando o anfitrião apertar.</p>
+      <p className="text-center text-lg text-muted">Aguarde o anfitrião apertar “Bora”. A rodada aparece no seu celular.</p>
     </section>
   );
 }
@@ -108,7 +109,7 @@ export function RoundResultScreen({ game, team }: { game: GameState; team: TeamI
         {lead === 0 && <>Tudo empatado no geral.</>}
       </p>
       <p className="text-center text-lg text-muted">
-        {isLast ? 'Olha pra TV 👀 — vem o resultado final.' : 'Olha pra TV 👀 — já vem a próxima rodada.'}
+        {isLast ? 'Aguarde o resultado final.' : 'Aguarde a próxima rodada.'}
       </p>
     </section>
   );
@@ -174,7 +175,7 @@ export function SpectatorScreen({ game }: { game: GameState }) {
     <WaitingCard emoji="🍺" title="Você está de espectador">
       O jogo começou antes de você escolher um time, e não dá pra entrar com a partida rolando.
       <br />
-      Agora: rodada {game.roundIndex + 1} de {TOTAL_ROUNDS} — {info.title}. Acompanhe pela TV e entre na
+      Agora: rodada {game.roundIndex + 1} de {TOTAL_ROUNDS} — {info.title}. Acompanhe pela mesa e entre na
       próxima partida.
     </WaitingCard>
   );

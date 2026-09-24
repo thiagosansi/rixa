@@ -48,6 +48,21 @@ const DECK: Deck = {
   ],
   leilao: [{ category: 'Frutas' }, { category: 'Capitais' }, { category: 'Carros' }],
   telefone: ['Começo A', 'Começo B', 'Começo C', 'Começo D', 'Começo E'],
+  detetive: [
+    {
+      title: 'Caso de teste',
+      setting: 'Uma sala',
+      incident: 'Algo sumiu',
+      publicClues: ['Pista 1', 'Pista 2'],
+      roleCards: [
+        { role: 'Responsável', clue: 'Você fez isso.' },
+        { role: 'Testemunha', clue: 'Você viu algo.' },
+        { role: 'Vizinho', clue: 'Você ouviu algo.' },
+      ],
+      culpritRole: 'Responsável',
+      solution: 'O responsável fez isso.',
+    },
+  ],
   relampago: Array.from({ length: 7 }, (_, i) => ({
     text: `Pergunta ${i}`,
     options: ['A', 'B', 'C', 'D'],
@@ -456,10 +471,10 @@ function revealAll(s: GameState): GameState {
 
 describe('telefone sem fio', () => {
   it('é a 5ª rodada, sem multiplicador; a final continua sendo a única 3x', () => {
-    assert.equal(TOTAL_ROUNDS, 6);
-    assert.deepEqual([...ROUND_ORDER], ['mimica', 'tabu', 'mentiroso', 'leilao', 'telefone', 'relampago']);
+    assert.equal(TOTAL_ROUNDS, 7);
+    assert.deepEqual([...ROUND_ORDER], ['mimica', 'tabu', 'mentiroso', 'leilao', 'telefone', 'detetive', 'relampago']);
     assert.equal(TELEFONE_ROUND, 4);
-    assert.deepEqual([0, 1, 2, 3, 4, 5].map(multiplierFor), [1, 1, 1, 1, 1, 3]);
+    assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map(multiplierFor), [1, 1, 1, 1, 1, 1, 3]);
     const s = playAt(table(2, 2), TELEFONE_ROUND);
     assert.equal(s.multiplier, 1);
     assert.equal(tele(s).stage, 'writing');
@@ -741,12 +756,55 @@ describe('telefone sem fio', () => {
 });
 
 /* ------------------------------------------------------------------ */
+/* detetive                                                            */
+/* ------------------------------------------------------------------ */
+
+describe('detetive da casa', () => {
+  it('entrega personagens em segredo, libera pistas e pontua quem encontra o responsável', () => {
+    let s = playAt(table(2, 2), 5);
+    let r = roundOf(s, 'detetive');
+    assert.equal(r.stage, 'investigation');
+    assert.equal(r.revealedClues, 1);
+    assert.ok(r.culpritId);
+
+    const publicState = toPublicState(s);
+    assert.equal(roundOf(publicState, 'detetive').culpritId, null);
+    assert.ok(Object.values(publicState.secrets).every((secret) => secret.kind === 'none'));
+    assert.equal(privateSecrets(s).length, 4);
+    assert.ok(privateSecrets(s).every(({ secret }) => secret.kind === 'detetive-role'));
+
+    s = next(s); // discussão: mais uma pista
+    r = roundOf(s, 'detetive');
+    assert.equal(r.stage, 'discussion');
+    assert.equal(r.revealedClues, 2);
+    s = next(s); // votação
+    r = roundOf(s, 'detetive');
+    assert.equal(r.stage, 'voting');
+
+    const culprit = r.culpritId!;
+    const fallback = r.order.find((id) => id !== culprit)!;
+    for (const id of r.order) {
+      s = act(s, id, { type: 'detetive-vote', accusedId: id === culprit ? fallback : culprit });
+    }
+    s = next(s);
+    r = roundOf(s, 'detetive');
+    assert.equal(r.stage, 'reveal');
+    assert.equal(r.culpritId, culprit);
+    assert.equal(s.scores.red + s.scores.blue, 3 * POINTS.detetiveFound);
+
+    s = next(s);
+    assert.equal(s.phase, 'round-result');
+  });
+});
+
+/* ------------------------------------------------------------------ */
 /* relâmpago                                                           */
 /* ------------------------------------------------------------------ */
 
 describe('relâmpago', () => {
   it('pontua a MÉDIA do time (1x3) e aplica 3x', () => {
-    let s = playAt(table(1, 3), 5);
+    let s = playAt(table(1, 3), 6);
+    const before = { ...s.scores };
     assert.equal(s.multiplier, 3);
     const r = roundOf(s, 'relampago');
     assert.equal(r.totalQuestions, RELAMPAGO_TOTAL_QUESTIONS);
@@ -763,11 +821,12 @@ describe('relâmpago', () => {
 
     // vermelho: média de [150] = 150 -> x3 = 450
     // azul: média de [150, 0, 0] = 50 -> x3 = 150  (na regra antiga, por jogador, daria 450 x 450)
-    assert.deepEqual(s.scores, { red: 450, blue: 150 });
+    assert.deepEqual(s.scores, { red: before.red + 450, blue: before.blue + 150 });
   });
 
   it('teto teórico da final: 6 x 150 x 3 = 2700, independente do tamanho do time', () => {
-    let s = playAt(table(3, 4), 5);
+    let s = playAt(table(3, 4), 6);
+    const before = { ...s.scores };
     for (let q = 0; q < RELAMPAGO_TOTAL_QUESTIONS; q++) {
       const right = at(DECK.relampago, roundOf(s, 'relampago').questionIndex).answerIndex;
       for (const p of s.players) s = act(s, p.id, { type: 'answer-choice', choice: right });
@@ -775,7 +834,7 @@ describe('relâmpago', () => {
       s = next(s); // próxima pergunta / fim
     }
     assert.equal(s.phase, 'round-result');
-    assert.deepEqual(s.scores, { red: 2700, blue: 2700 });
+    assert.deepEqual(s.scores, { red: before.red + 2700, blue: before.blue + 2700 });
   });
 });
 
@@ -787,6 +846,7 @@ describe('torneio completo (3 x 4)', () => {
   it('o placar final bate com o cálculo esperado, rodada a rodada', () => {
     let s = host(table(3, 4), { type: 'start-game' });
     let telefoneDelta = { red: 0, blue: 0 };
+    const detectiveDelta = { red: 0, blue: 0 };
     const guessRight = (st: GameState): GameState => {
       const r = st.round;
       assert.ok(r && (r.kind === 'mimica' || r.kind === 'tabu'));
@@ -946,7 +1006,28 @@ describe('torneio completo (3 x 4)', () => {
       telefoneDelta = expected;
     }
 
-    /* R6 relâmpago — 6 perguntas, média do time, 3x */
+    /* R6 detetive — todo mundo aponta o responsável, menos ele */
+    s = next(next(s));
+    {
+      const d = roundOf(s, 'detetive');
+      const culprit = d.culpritId!;
+      const fallback = d.order.find((id) => id !== culprit)!;
+      s = next(s); // investigação -> discussão
+      s = next(s); // discussão -> votação
+      for (const id of d.order) {
+        s = act(s, id, { type: 'detetive-vote', accusedId: id === culprit ? fallback : culprit });
+        if (id !== culprit) {
+          const team = s.players.find((p) => p.id === id)?.team;
+          if (team) detectiveDelta[team] += POINTS.detetiveFound;
+        }
+      }
+      s = next(s); // revelação
+      assert.equal(roundOf(s, 'detetive').stage, 'reveal');
+      s = next(s); // resultado da rodada
+      assert.deepEqual(s.roundLog[5].delta, detectiveDelta);
+    }
+
+    /* R7 relâmpago — 6 perguntas, média do time, 3x */
     s = next(next(s));
     assert.equal(s.multiplier, 3);
     const answer = (st: GameState, ids: string[], how: 'right' | 'wrong'): GameState => {
@@ -978,17 +1059,20 @@ describe('torneio completo (3 x 4)', () => {
       s = next(next(s));
     }
     assert.equal(s.phase, 'round-result');
-    assert.deepEqual(s.roundLog[5].delta, { red: 450 + 126 + 450, blue: 207 + 300 + 450 });
+    assert.deepEqual(s.roundLog[6].delta, { red: 450 + 126 + 450, blue: 207 + 300 + 450 });
 
     s = next(s);
     assert.equal(s.phase, 'game-over');
-    assert.equal(s.roundLog.length, 6);
+    assert.equal(s.roundLog.length, 7);
     assert.deepEqual(s.scores, {
-      red: 300 + 200 + 725 + 450 + telefoneDelta.red + 1026,
-      blue: 150 + 200 + 750 + 0 + telefoneDelta.blue + 957,
+      red: 300 + 200 + 725 + 450 + telefoneDelta.red + detectiveDelta.red + 1026,
+      blue: 150 + 200 + 750 + 0 + telefoneDelta.blue + detectiveDelta.blue + 957,
     });
     assert.equal(telefoneDelta.red + telefoneDelta.blue, 450, 'telefone distribuiu 75+75+200+100');
-    assert.deepEqual(s.scores, { red: 2701 + telefoneDelta.red, blue: 2057 + telefoneDelta.blue });
+    assert.deepEqual(s.scores, {
+      red: 2701 + telefoneDelta.red + detectiveDelta.red,
+      blue: 2057 + telefoneDelta.blue + detectiveDelta.blue,
+    });
     const logged = s.roundLog.reduce(
       (acc, e) => ({ red: acc.red + e.delta.red, blue: acc.blue + e.delta.blue }),
       { red: 0, blue: 0 },

@@ -388,6 +388,35 @@ const relampago = [
 ];
 
 // ---------------------------------------------------------------------------
+// DETETIVE DA CASA — casos curtos para investigar conversando na mesa
+// ---------------------------------------------------------------------------
+const detetive = [
+  {
+    title: 'O Sumisso da Garrafa Especial',
+    setting: 'Uma garrafa guardada para o brinde desapareceu antes da festa começar.',
+    incident: 'A última pessoa que viu a garrafa deixou uma mensagem misteriosa no grupo da casa.',
+    publicClues: [
+      'A tampa foi encontrada no lixo, mas a garrafa não estava na cozinha.',
+      'Há uma marca de gelo derretido perto da porta dos fundos.',
+      'Alguém usou um copo grande, embora a festa ainda nem tivesse começado.',
+      'Uma foto do grupo mostra uma mochila aberta ao lado do sofá.',
+    ],
+    roleCards: [
+      { role: 'Dono da casa', clue: 'Você escondeu os copos bons e sabe que nenhum estava na cozinha.' },
+      { role: 'Melhor amigo', clue: 'Você viu uma mochila aberta ao lado do sofá.' },
+      { role: 'Vizinho', clue: 'Você ouviu a porta dos fundos bater duas vezes.' },
+      { role: 'DJ', clue: 'Você estava escolhendo músicas e não saiu da sala.' },
+      { role: 'Pessoa da churrasqueira', clue: 'Você encontrou gelo derretido perto da porta.' },
+      { role: 'Convidado atrasado', clue: 'Você recebeu uma mensagem dizendo: “ninguém vai descobrir”.' },
+      { role: 'Fotógrafo', clue: 'Sua foto mostra uma mochila aberta perto do sofá.' },
+      { role: 'Responsável', clue: 'Você pegou a garrafa para fazer um brinde secreto antes da festa.' },
+    ],
+    culpritRole: 'Responsável',
+    solution: 'O Responsável pegou a garrafa, colocou-a na mochila e preparou um brinde secreto antes dos demais chegarem.',
+  },
+];
+
+// ---------------------------------------------------------------------------
 // TELEFONE SEM FIO — 25 começos de frase (inspiração/placeholder para a frase inicial)
 // ---------------------------------------------------------------------------
 const telefone: string[] = [
@@ -425,4 +454,5 @@ export const semFiltro: Deck = {
   leilao,
   relampago,
   telefone,
+  detetive,
 };

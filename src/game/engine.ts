@@ -5,6 +5,7 @@
  */
 import type {
   DeckMode,
+  DetetiveState,
   GameState,
   HostAction,
   LeilaoState,
@@ -225,6 +226,21 @@ export function computeSecrets(state: GameState, content: Deck): Record<string, 
     return secrets;
   }
 
+  if (round.kind === 'detetive') {
+    const dossier = pick(content.detetive, round.caseIndex);
+    if (!dossier || !round.culpritId || dossier.roleCards.length === 0) return secrets;
+    const culpritCard = dossier.roleCards.find((card) => card.role === dossier.culpritRole);
+    const otherCards = dossier.roleCards.filter((card) => card.role !== dossier.culpritRole);
+    if (!culpritCard || otherCards.length === 0) return secrets;
+    let otherIndex = 0;
+    for (const playerId of round.order) {
+      const guilty = playerId === round.culpritId;
+      const card = guilty ? culpritCard : otherCards[otherIndex++ % otherCards.length];
+      secrets[playerId] = { kind: 'detetive-role', role: card.role, clue: card.clue, guilty };
+    }
+    return secrets;
+  }
+
   // mentiroso: ninguém recebe a verdade durante o jogo (o variante 'mentiroso-truth'
   // existe no contrato para telas futuras que queiram revelar a verdade a um juiz).
   return secrets;
@@ -407,6 +423,11 @@ export function telefoneAllSubmitted(r: TelefoneState): boolean {
 
 /** Todo mundo votou? */
 export function telefoneAllVoted(r: TelefoneState): boolean {
+  if (r.stage !== 'voting') return false;
+  return r.order.length > 0 && r.order.every((id) => r.votes[id] !== undefined);
+}
+
+export function detetiveAllVoted(r: DetetiveState): boolean {
   if (r.stage !== 'voting') return false;
   return r.order.length > 0 && r.order.every((id) => r.votes[id] !== undefined);
 }
@@ -710,6 +731,15 @@ export function applyPlayer(
       return withRound(state, { ...r, votes: { ...r.votes, [playerId]: action.chainIndex } });
     }
 
+    case 'detetive-vote': {
+      const r = state.round;
+      if (state.phase !== 'round-play' || r?.kind !== 'detetive' || r.stage !== 'voting') return state;
+      if (!r.order.includes(playerId)) return state;
+      if (r.votes[playerId] !== undefined) return state;
+      if (!r.order.includes(action.accusedId) || action.accusedId === playerId) return state;
+      return withRound(state, { ...r, votes: { ...r.votes, [playerId]: action.accusedId } });
+    }
+
     case 'answer-choice': {
       const r = state.round;
       if (state.phase !== 'round-play' || r?.kind !== 'relampago' || r.revealed) return state;
@@ -962,6 +992,32 @@ function advanceRound(state: GameState, content: Deck, now: number): GameState {
       return nextLeilaoCategory(scoreLeilao(state, r), r, now);
     }
 
+    case 'detetive': {
+      if (r.stage === 'investigation') {
+        return withRound(state, {
+          ...r,
+          stage: 'discussion',
+          revealedClues: 2,
+          deadline: now + DURATIONS.detetive.discussion,
+        });
+      }
+      if (r.stage === 'discussion') {
+        return withRound(state, {
+          ...r,
+          stage: 'voting',
+          deadline: now + DURATIONS.detetive.voting,
+        });
+      }
+      if (r.stage === 'voting') {
+        return withRound(scoreDetetive(state, r), {
+          ...r,
+          stage: 'reveal',
+          deadline: now + DURATIONS.detetive.reveal,
+        });
+      }
+      return finishRound(state);
+    }
+
     case 'telefone':
       return advanceTelefone(state, r, now);
 
@@ -1047,6 +1103,19 @@ function scoreLeilao(state: GameState, r: LeilaoState): GameState {
     : addScore(state, otherTeam(r.winner), prize);
 }
 
+function scoreDetetive(state: GameState, r: DetetiveState): GameState {
+  if (!r.culpritId) return state;
+  let next = state;
+  const caught = Object.values(r.votes).some((accusedId) => accusedId === r.culpritId);
+  for (const [voterId, accusedId] of Object.entries(r.votes)) {
+    if (accusedId === r.culpritId) {
+      next = addScore(next, teamOf(next, voterId), POINTS.detetiveFound);
+    }
+  }
+  if (!caught) next = addScore(next, teamOf(next, r.culpritId), POINTS.detetiveSurvived);
+  return next;
+}
+
 function scoreRelampago(
   state: GameState,
   r: Extract<RoundState, { kind: 'relampago' }>,
@@ -1114,9 +1183,9 @@ export function hostApplyHost(state: GameState, action: HostAction, content: Dec
   return { ...next, secrets: computeSecrets(next, content) };
 }
 
-/** Segredos que só viajam por envelope endereçado (nunca no broadcast). */
+/** Todos os segredos só viajam por envelope endereçado (nunca no broadcast). */
 function isPrivateSecret(secret: PlayerSecret): boolean {
-  return secret.kind === 'leilao-bid' || secret.kind === 'telefone-task';
+  return secret.kind !== 'none';
 }
 
 function hideSecrets(secrets: Record<string, PlayerSecret>): Record<string, PlayerSecret> {
@@ -1128,7 +1197,7 @@ function hideSecrets(secrets: Record<string, PlayerSecret>): Record<string, Play
 }
 
 /**
- * O que pode sair no broadcast. O estado do host guarda os lances reais do leilão;
+ * O que pode sair no broadcast. O estado do host guarda os segredos reais;
  * durante o `bidding` o broadcast leva só `hasBid` (bids/bidAt viram null e o segredo
  * `leilao-bid` sai de `secrets`). O lance do próprio time chega por envelope `secret`
  * endereçado — ver `privateSecrets`.
@@ -1139,7 +1208,7 @@ function hideSecrets(secrets: Record<string, PlayerSecret>): Record<string, Play
  */
 export function toPublicState(state: GameState, now: number = Date.now()): GameState {
   const r = state.round;
-  if (state.phase !== 'round-play' || !r) return { ...state, now };
+  if (state.phase !== 'round-play' || !r) return { ...state, now, secrets: hideSecrets(state.secrets) };
   if (r.kind === 'leilao' && r.stage === 'bidding') {
     return {
       ...state,
@@ -1163,10 +1232,18 @@ export function toPublicState(state: GameState, now: number = Date.now()): GameS
       },
     };
   }
-  return { ...state, now };
+  if (r.kind === 'detetive' && r.stage !== 'reveal') {
+    return {
+      ...state,
+      now,
+      secrets: hideSecrets(state.secrets),
+      round: { ...r, culpritId: null },
+    };
+  }
+  return { ...state, now, secrets: hideSecrets(state.secrets) };
 }
 
-/** Segredos que NÃO podem ir no broadcast: a TV manda um envelope `secret` por destinatário. */
+/** Segredos que vão em envelope endereçado: a autoridade manda um por jogador. */
 export function privateSecrets(state: GameState): { playerId: string; secret: PlayerSecret }[] {
   return Object.entries(state.secrets)
     .filter(([, secret]) => isPrivateSecret(secret))

@@ -17,7 +17,7 @@ const body = Inter({
 
 export const metadata: Metadata = {
   title: 'RIXA',
-  description: 'Torneio de 6 rodadas entre dois times. A TV é a arena, o celular é o controle.',
+  description: 'Jogos de sala para jogar com os celulares. A TV é opcional.',
   applicationName: 'RIXA',
 };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import type { DeckMode, Envelope, GameState, HostAction, Player, TeamId } from '@/game/types';
 import {
   canStart,
@@ -29,10 +30,14 @@ import { MentirosoScreen } from '@/components/tv/MentirosoScreen';
 import { LeilaoScreen } from '@/components/tv/LeilaoScreen';
 import { TelefoneScreen } from '@/components/tv/TelefoneScreen';
 import { RelampagoScreen } from '@/components/tv/RelampagoScreen';
+import { DetectiveScreen } from '@/components/tv/DetectiveScreen';
 
 const DECK_OPTIONS: DeckMode[] = ['familia', 'sem-filtro'];
 
 export default function TvPage() {
+  const pathname = usePathname();
+  const mode: 'tv' | 'mesa' = pathname === '/mesa' ? 'mesa' : 'tv';
+  const isMesa = mode === 'mesa';
   const [code, setCode] = useState<string | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
   const [joinUrl, setJoinUrl] = useState<string | null>(null);
@@ -75,6 +80,7 @@ export default function TvPage() {
   }, [code]);
 
   const handleEnvelope = useCallback((env: Envelope) => {
+    if (env.game === 'cidade') return;
     if (env.t !== 'act') return;
     setGame((prev) =>
       prev ? hostApplyPlayer(prev, env.playerId, env.action, contentRef.current) : prev,
@@ -167,15 +173,16 @@ export default function TvPage() {
   }
 
   return (
-    <main className="tv-root mx-auto flex min-h-[100dvh] w-full max-w-[1600px] flex-col gap-6 px-8 py-6">
-      <TopBar game={game} status={status} />
+    <main className={`${isMesa ? 'mesa-root mx-auto max-w-2xl gap-4 px-4 py-4' : 'tv-root max-w-[1600px] gap-6 px-8 py-6'} flex min-h-[100dvh] w-full flex-col`}>
+      <TopBar game={game} status={status} mode={mode} />
       {game.phase === 'lobby' && (
-        <Lobby
-          game={game}
-          joinUrl={joinUrl}
-          onDeck={(deck) => host({ type: 'set-deck', deck })}
-          onStart={() => host({ type: 'start-game' })}
-        />
+          <Lobby
+            game={game}
+            joinUrl={joinUrl}
+            onDeck={(deck) => host({ type: 'set-deck', deck })}
+            onStart={() => host({ type: 'start-game' })}
+            mode={mode}
+          />
       )}
       {game.phase === 'round-intro' && (
         <Screen key={`intro-${game.roundIndex}`}>
@@ -206,7 +213,7 @@ export default function TvPage() {
   );
 }
 
-function TopBar({ game, status }: { game: GameState; status: string }) {
+function TopBar({ game, status, mode }: { game: GameState; status: string; mode: 'tv' | 'mesa' }) {
   const roundLabel =
     game.phase === 'lobby'
       ? 'Aguardando a mesa'
@@ -220,7 +227,7 @@ function TopBar({ game, status }: { game: GameState; status: string }) {
     <header className="flex items-center justify-between gap-6">
       <div>
         <span className="display text-4xl text-gold md:text-6xl">RIXA</span>
-        <span className="ml-4 text-lg text-muted md:text-2xl">{roundLabel}</span>
+        <span className="ml-2 text-sm text-muted md:ml-4 md:text-2xl">{mode === 'mesa' ? `mesa · ${roundLabel}` : roundLabel}</span>
       </div>
       <div className="flex items-center gap-6">
         {showScores && (
@@ -269,11 +276,13 @@ function Lobby({
   joinUrl,
   onDeck,
   onStart,
+  mode,
 }: {
   game: GameState;
   joinUrl: string | null;
   onDeck: (deck: DeckMode) => void;
   onStart: () => void;
+  mode: 'tv' | 'mesa';
 }) {
   const counts = teamCounts(game);
   const ready = canStart(game);
@@ -282,6 +291,12 @@ function Lobby({
   return (
     <div className="flex flex-1 flex-col gap-8">
       <CodeDisplay code={game.code} joinUrl={joinUrl} className="justify-center" />
+
+      {mode === 'mesa' && (
+        <p className="rounded-2xl border-2 border-gold/50 bg-gold/10 px-4 py-3 text-center text-lg text-ink">
+          Esta é a tela do anfitrião. Cada pessoa entra em <span className="text-gold">/jogar</span> com o código acima.
+        </p>
+      )}
 
       <div className="grid flex-1 grid-cols-2 gap-6">
         <TeamColumn team="red" players={game.players.filter((p) => p.team === 'red')} />
@@ -374,6 +389,8 @@ function RoundPlay({
       return <LeilaoScreen game={game} round={round} content={content} onNext={onNext} />;
     case 'telefone':
       return <TelefoneScreen game={game} round={round} onNext={onNext} />;
+    case 'detetive':
+      return <DetectiveScreen game={game} round={round} content={content} />;
     case 'relampago':
       return <RelampagoScreen game={game} round={round} content={content} />;
   }

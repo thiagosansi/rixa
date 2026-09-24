@@ -50,7 +50,7 @@ export function RelampagoRound({ game, me, act, round }: RoundProps & { round: R
       </div>
 
       <div className="rounded-2xl border-2 border-line bg-surface px-4 py-3">
-        <p className="text-xl leading-snug text-ink">{q?.text ?? 'Leia a pergunta na TV'}</p>
+        <p className="text-xl leading-snug text-ink">{q?.text ?? 'A pergunta será carregada'}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-2">

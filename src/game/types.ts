@@ -1,6 +1,13 @@
 export type TeamId = 'red' | 'blue';
 export type DeckMode = 'familia' | 'sem-filtro';
-export type RoundKind = 'mimica' | 'tabu' | 'mentiroso' | 'leilao' | 'telefone' | 'relampago';
+export type RoundKind =
+  | 'mimica'
+  | 'tabu'
+  | 'mentiroso'
+  | 'leilao'
+  | 'telefone'
+  | 'detetive'
+  | 'relampago';
 export type Phase = 'lobby' | 'round-intro' | 'round-play' | 'round-result' | 'game-over';
 
 export type Player = { id: string; name: string; team: TeamId | null; lastSeen: number };
@@ -120,7 +127,7 @@ export type TelefoneState = {
    */
   chains: TelefoneChain[];
   deadline: number;
-  /** reveal: corrente e passo sendo mostrados na TV */
+  /** reveal: corrente e passo sendo mostrados para a mesa */
   revealChain: number;
   revealStep: number;
   /** playerId -> índice da corrente mais engraçada */
@@ -131,12 +138,27 @@ export type TelefoneState = {
   ranking: number[];
 };
 
+export type DetetiveState = {
+  kind: 'detetive';
+  stage: 'investigation' | 'discussion' | 'voting' | 'reveal';
+  caseIndex: number;
+  /** jogadores que receberam um personagem nesta investigação */
+  order: string[];
+  /** fica nulo no estado público até a revelação */
+  culpritId: string | null;
+  /** quantidade de pistas públicas já liberadas */
+  revealedClues: number;
+  votes: Record<string, string>;
+  deadline: number;
+};
+
 export type RoundState =
   | MimicaState
   | TabuState
   | MentirosoState
   | LeilaoState
   | TelefoneState
+  | DetetiveState
   | RelampagoState;
 
 export type GameState = {
@@ -173,6 +195,7 @@ export type PlayerSecret =
       input: string | null;
       starter: string | null;
     }
+  | { kind: 'detetive-role'; role: string; clue: string; guilty: boolean }
   | { kind: 'none' };
 
 export type PlayerAction =
@@ -190,6 +213,7 @@ export type PlayerAction =
   | { type: 'judge'; index: number; accepted: boolean }
   | { type: 'telefone-submit'; text: string }
   | { type: 'telefone-vote'; chainIndex: number }
+  | { type: 'detetive-vote'; accusedId: string }
   | { type: 'answer-choice'; choice: number };
 
 export type HostAction =
@@ -199,8 +223,72 @@ export type HostAction =
   | { type: 'tick' }
   | { type: 'kick'; playerId: string };
 
+/* ------------------------------------------------------------------ */
+/* Cidade em Jogo — modo imobiliário independente do torneio RIXA     */
+/* ------------------------------------------------------------------ */
+
+export type CidadeTileType = 'start' | 'property' | 'event' | 'tax' | 'jail' | 'go-to-jail' | 'rest';
+export type CidadePlayerColor = 'coral' | 'sky' | 'lime' | 'violet' | 'orange' | 'pink';
+
+export type CidadeTile = {
+  id: string;
+  name: string;
+  type: CidadeTileType;
+  price?: number;
+  rent?: number;
+  tax?: number;
+  colorGroup?: string;
+};
+
+export type CidadePropertyState = {
+  ownerId: string | null;
+  level: number;
+};
+
+export type CidadePlayer = {
+  id: string;
+  name: string;
+  color: CidadePlayerColor;
+  position: number;
+  money: number;
+  propertyIds: string[];
+  lastSeen: number;
+};
+
+export type CidadeState = {
+  code: string;
+  phase: 'lobby' | 'playing' | 'finished';
+  players: CidadePlayer[];
+  board: CidadeTile[];
+  properties: Record<string, CidadePropertyState>;
+  currentPlayerId: string | null;
+  turnNumber: number;
+  maxTurns: number;
+  awaiting: 'roll' | 'buy-or-end' | 'end-turn' | null;
+  lastRoll: [number, number] | null;
+  lastEvent: string | null;
+  lastAction: string | null;
+  eventIndex: number;
+  winnerId: string | null;
+  now: number;
+};
+
+export type CidadePlayerAction =
+  | { type: 'join'; name: string }
+  | { type: 'heartbeat' }
+  | { type: 'roll-dice' }
+  | { type: 'buy-property' }
+  | { type: 'end-turn' };
+
+export type CidadeHostAction = { type: 'start' } | { type: 'reset' };
+
+export type CidadeEnvelope =
+  | { t: 'state'; game: 'cidade'; state: CidadeState }
+  | { t: 'act'; game: 'cidade'; playerId: string; action: CidadePlayerAction };
+
 export type Envelope =
-  | { t: 'state'; state: GameState }
-  | { t: 'act'; playerId: string; action: PlayerAction }
+  | { t: 'state'; state: GameState; game?: 'rixa' }
+  | { t: 'act'; playerId: string; action: PlayerAction; game?: 'rixa' }
   /** segredo entregue só ao destinatário (o relay ws roteia por playerId) */
-  | { t: 'secret'; playerId: string; secret: PlayerSecret };
+  | { t: 'secret'; playerId: string; secret: PlayerSecret; game?: 'rixa' }
+  | CidadeEnvelope;

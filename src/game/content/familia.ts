@@ -385,6 +385,35 @@ const relampago = [
 ];
 
 // ---------------------------------------------------------------------------
+// DETETIVE DA CASA — casos curtos para investigar conversando na mesa
+// ---------------------------------------------------------------------------
+const detetive = [
+  {
+    title: 'O Mistério do Bolo Desaparecido',
+    setting: 'A festa de aniversário estava pronta, mas o bolo sumiu da cozinha poucos minutos antes dos parabéns.',
+    incident: 'Alguém levou o bolo para outro lugar e deixou a caixa vazia perto da pia.',
+    publicClues: [
+      'A caixa foi encontrada aberta e sem marcas de arrombamento.',
+      'Havia farelos de chocolate no caminho entre a cozinha e a varanda.',
+      'A geladeira estava ligada, mas ninguém encontrou o bolo dentro dela.',
+      'Uma foto tirada no corredor mostra uma sombra carregando algo grande.',
+    ],
+    roleCards: [
+      { role: 'Anfitrião', clue: 'Você ouviu a porta da varanda abrir enquanto buscava os pratos.' },
+      { role: 'Primo', clue: 'Você viu alguém com uma toalha azul perto da cozinha.' },
+      { role: 'Vizinha', clue: 'Você estava na varanda e ouviu um barulho de cadeira arrastando.' },
+      { role: 'Avó', clue: 'Você sabe que a faca de bolo ficou na gaveta até o fim.' },
+      { role: 'Criança', clue: 'Você encontrou uma colher suja atrás do vaso de plantas.' },
+      { role: 'Fotógrafo', clue: 'Seu celular registrou uma sombra passando pelo corredor.' },
+      { role: 'Responsável pela música', clue: 'Você deixou a caixa de som na sala e não entrou na cozinha.' },
+      { role: 'Entregador', clue: 'Você chegou depois que a caixa já estava vazia.' },
+    ],
+    culpritRole: 'Criança',
+    solution: 'A Criança pegou o bolo com uma colher, levou para a varanda e escondeu a forma atrás das plantas.',
+  },
+];
+
+// ---------------------------------------------------------------------------
 // TELEFONE SEM FIO — 25 começos de frase (inspiração/placeholder para a frase inicial)
 // ---------------------------------------------------------------------------
 const telefone: string[] = [
@@ -422,4 +451,5 @@ export const familia: Deck = {
   leilao,
   relampago,
   telefone,
+  detetive,
 };
