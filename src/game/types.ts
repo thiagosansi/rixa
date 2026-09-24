@@ -280,7 +280,10 @@ export type CidadePlayerAction =
   | { type: 'buy-property' }
   | { type: 'end-turn' };
 
-export type CidadeHostAction = { type: 'start' } | { type: 'reset' };
+export type CidadeHostAction =
+  | { type: 'start' }
+  | { type: 'reset' }
+  | { type: 'add-player'; name: string };
 
 export type CidadeEnvelope =
   | { t: 'state'; game: 'cidade'; state: CidadeState }

@@ -210,6 +210,22 @@ export function applyCidadePlayer(state: CidadeState, playerId: string, action: 
 }
 
 export function applyCidadeHost(state: CidadeState, action: CidadeHostAction): CidadeState {
+  if (action.type === 'add-player') {
+    if (state.phase !== 'lobby' || state.players.length >= 6) return state;
+    const player: CidadePlayer = {
+      id: `host-player-${state.players.length + 1}`,
+      name: cleanName(action.name),
+      color: nextColor(state.players),
+      position: 0,
+      money: CIDADE_STARTING_MONEY,
+      propertyIds: [],
+      lastSeen: Date.now(),
+    };
+    return withMessage(
+      { ...state, players: [...state.players, player] },
+      `${player.name} entrou na partida pelo computador.`,
+    );
+  }
   if (action.type === 'reset') return createCidadeGame(state.code);
   if (action.type === 'start' && canStartCidade(state)) {
     return withMessage({ ...state, phase: 'playing', currentPlayerId: state.players[0]?.id ?? null, awaiting: 'roll', turnNumber: 0 }, `Cidade em Jogo começou. Vez de ${state.players[0]?.name ?? 'ninguém'}.`);

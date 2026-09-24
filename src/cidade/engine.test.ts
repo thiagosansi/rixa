@@ -10,6 +10,16 @@ function joined() {
 }
 
 describe('Cidade em Jogo', () => {
+  it('permite montar uma partida pass-and-play no computador', () => {
+    let state = createCidadeGame('CITY');
+    state = applyCidadeHost(state, { type: 'add-player', name: 'Ana' });
+    state = applyCidadeHost(state, { type: 'add-player', name: 'Bia' });
+    assert.deepEqual(state.players.map((player) => player.name), ['Ana', 'Bia']);
+    state = applyCidadeHost(state, { type: 'start' });
+    state = applyCidadePlayer(state, 'host-player-1', { type: 'roll-dice' });
+    assert.ok(state.lastRoll);
+  });
+
   it('entra sem times e começa com dois jogadores', () => {
     let state = joined();
     assert.equal(state.players.length, 2);

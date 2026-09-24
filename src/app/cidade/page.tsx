@@ -1,13 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CidadeState, Envelope } from '@/game/types';
+import type { CidadePlayerAction, CidadeState, Envelope } from '@/game/types';
 import { applyCidadeHost, applyCidadePlayer, canStartCidade, createCidadeGame, cidadePlayerWealth } from '@/cidade/engine';
 import { makeRoomCode } from '@/lib/id';
 import { buildJoinUrl, isLocalHostname, pickJoinOrigin } from '@/lib/join-url';
 import { useRoomChannel } from '@/lib/channel';
 import { Button } from '@/components/ui';
-import { CityBoard, CityScoreboard } from '@/components/cidade/CityBoard';
+import { CityBoard, CityDice, CityScoreboard } from '@/components/cidade/CityBoard';
 import { CityLobby } from '@/components/cidade/CityLobby';
 
 export default function CidadeHostPage() {
@@ -72,6 +72,17 @@ export default function CidadeHostPage() {
     setState((current) => current ? applyCidadeHost(current, { type: action }) : current);
   }, []);
 
+  const addPlayer = useCallback((name: string) => {
+    setState((current) => current ? applyCidadeHost(current, { type: 'add-player', name }) : current);
+  }, []);
+
+  const hostTurn = useCallback((action: CidadePlayerAction) => {
+    setState((current) => {
+      if (!current?.currentPlayerId) return current;
+      return applyCidadePlayer(current, current.currentPlayerId, action);
+    });
+  }, []);
+
   const restart = () => {
     if (!code) return;
     setState(createCidadeGame(code));
@@ -95,7 +106,7 @@ export default function CidadeHostPage() {
         </span>
       </header>
 
-      {state.phase === 'lobby' && <CityLobby state={state} joinUrl={joinUrl} onStart={() => host('start')} />}
+      {state.phase === 'lobby' && <CityLobby state={state} joinUrl={joinUrl} onStart={() => host('start')} onAddPlayer={addPlayer} />}
 
       {state.phase === 'playing' && (
         <section className="flex flex-col gap-4">
@@ -107,6 +118,24 @@ export default function CidadeHostPage() {
             <div className="rounded-xl border-2 border-gold/50 bg-gold/10 px-3 py-2 text-center text-sm text-ink">sala {state.code}</div>
           </div>
           <CityBoard state={state} />
+          <section className="rounded-3xl border-2 border-gold/50 bg-gold/10 px-4 py-4">
+            <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:text-left">
+              <div>
+                <div className="display text-sm text-gold">controle do turno</div>
+                <div className="display mt-1 text-2xl text-ink">{state.players.find((player) => player.id === state.currentPlayerId)?.name ?? '—'}</div>
+                <p className="mt-1 text-sm text-muted">Use aqui no modo pass-and-play ou jogue pelo dispositivo do jogador.</p>
+              </div>
+              <CityDice roll={state.lastRoll} />
+            </div>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              {state.awaiting === 'roll' && <Button size="xl" fullWidth onClick={() => hostTurn({ type: 'roll-dice' })}>Lançar dados</Button>}
+              {state.awaiting === 'buy-or-end' && <>
+                <Button size="lg" fullWidth onClick={() => hostTurn({ type: 'buy-property' })}>Comprar imóvel</Button>
+                <Button size="lg" variant="ghost" fullWidth onClick={() => hostTurn({ type: 'end-turn' })}>Passar</Button>
+              </>}
+              {state.awaiting === 'end-turn' && <Button size="xl" fullWidth onClick={() => hostTurn({ type: 'end-turn' })}>Encerrar turno</Button>}
+            </div>
+          </section>
           <CityScoreboard state={state} />
           <div className="rounded-2xl border-2 border-line bg-surface px-4 py-3 text-center text-lg text-ink">
             {state.lastRoll && <div className="display text-2xl text-gold">último dado: {state.lastRoll[0]} + {state.lastRoll[1]}</div>}

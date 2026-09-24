@@ -6,7 +6,7 @@ import { getPlayerId, getStoredName, normalizeRoomCode, setStoredName } from '@/
 import { cidadePlayerWealth } from '@/cidade/engine';
 import { useRoomChannel } from '@/lib/channel';
 import { Button } from '@/components/ui';
-import { CityBoard, CityScoreboard } from '@/components/cidade/CityBoard';
+import { CityBoard, CityDice, CityScoreboard } from '@/components/cidade/CityBoard';
 
 const ROOM_KEY = 'cidade:room-code';
 
@@ -123,7 +123,7 @@ export default function CidadePlayerPage() {
           <div className="rounded-2xl border-2 border-line bg-surface px-4 py-3 text-center"><div className="display text-sm text-muted">volta {state.turnNumber + 1}/{state.maxTurns}</div><div className="display mt-1 text-3xl text-gold">{current ? 'sua vez' : `${state.players.find((player) => player.id === state.currentPlayerId)?.name ?? 'alguém'} joga`}</div></div>
           <CityBoard state={state} compact />
           <div className="rounded-2xl border-2 border-gold/50 bg-gold/10 px-4 py-4 text-center"><div className="display text-sm text-gold">seu patrimônio</div><div className="display mt-1 text-4xl text-ink">${me ? cidadePlayerWealth(state, me) : 0}</div><div className="mt-1 text-muted">dinheiro em caixa: ${me?.money ?? 0} · imóveis: {me?.propertyIds.length ?? 0}</div></div>
-          {state.lastRoll && <div className="rounded-2xl border-2 border-line bg-surface px-4 py-3 text-center text-lg text-ink"><span className="display text-gold">{state.lastRoll[0]} + {state.lastRoll[1]}</span><br />{state.lastEvent ?? state.lastAction}</div>}
+          {state.lastRoll && <div className="rounded-2xl border-2 border-line bg-surface px-4 py-3 text-center text-lg text-ink"><CityDice roll={state.lastRoll} /><p className="mt-2">{state.lastEvent ?? state.lastAction}</p></div>}
           {current && canRoll && <Button size="xl" fullWidth onClick={() => act({ type: 'roll-dice' })}>Lançar dados</Button>}
           {current && canBuy && <div className="grid grid-cols-2 gap-2"><Button size="lg" onClick={() => act({ type: 'buy-property' })}>Comprar</Button><Button size="lg" variant="ghost" onClick={() => act({ type: 'end-turn' })}>Passar</Button></div>}
           {current && canEnd && !canBuy && <Button size="xl" fullWidth onClick={() => act({ type: 'end-turn' })}>Encerrar turno</Button>}
