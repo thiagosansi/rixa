@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import type { CidadeState } from '@/game/types';
 import { Button, CodeDisplay } from '@/components/ui';
-import { CityScoreboard } from './CityBoard';
+import { CityBoard, CityScoreboard } from './CityBoard';
 
 export function CityLobby({ state, joinUrl, onStart, onAddPlayer }: { state: CidadeState; joinUrl: string | null; onStart: () => void; onAddPlayer: (name: string) => void }) {
   const [name, setName] = useState('');
@@ -23,6 +23,7 @@ export function CityLobby({ state, joinUrl, onStart, onAddPlayer }: { state: Cid
         <div className="display text-2xl text-gold">Cidade em Jogo</div>
         <p className="mt-2 text-lg text-ink">Compre bairros, cobre aluguéis e termine com o maior patrimônio. Cada jogador pode usar celular, tablet ou computador.</p>
       </div>
+      <CityBoard state={state} />
       <div className="rounded-3xl border-2 border-line bg-surface px-4 py-4">
         <div className="display text-center text-sm tracking-[0.15em] text-muted">JOGAR SÓ NO COMPUTADOR</div>
         <p className="mt-2 text-center text-sm text-muted">Adicione os nomes e passe o computador para cada pessoa no próprio turno.</p>
