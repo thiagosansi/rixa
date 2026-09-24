@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import type { CidadePlayer, CidadeReaction, CidadeState, CidadeTile } from '@/game/types';
 import { cidadePlayerWealth } from '@/cidade/engine';
 import { CIDADE_REACTIONS } from '@/cidade/content';
@@ -20,6 +21,38 @@ const GROUP_COLORS: Record<string, string> = {
   roxo: 'bg-[#9b7be4]',
   rosa: 'bg-[#e879a3]',
   amarelo: 'bg-[#e4c249]',
+};
+
+const TILE_LABELS: Record<string, string[]> = {
+  start: ['Praça', 'Central'],
+  aurora: ['Vila', 'Aurora'],
+  'event-1': ['Notícia do', 'Bairro'],
+  mercado: ['Mercado', 'Municipal'],
+  'tax-1': ['Taxa de', 'Urbanização'],
+  estacao: ['Estação', 'Norte'],
+  jardins: ['Jardins do', 'Sol'],
+  'event-2': ['Boato na', 'Vizinhança'],
+  cinema: ['Cinema da', 'Rua 8'],
+  jail: ['Delegacia'],
+  porto: ['Porto', 'Velho'],
+  parque: ['Parque das', 'Mangueiras'],
+  'event-3': ['Festival da', 'Cidade'],
+  teatro: ['Teatro', 'Municipal'],
+  'tax-2': ['Licença', 'Comercial'],
+  farol: ['Farol da', 'Enseada'],
+  'event-4': ['Achados e', 'Perdidos'],
+  mirante: ['Mirante', 'Alto'],
+  'go-to-jail': ['Fiscalização'],
+  galeria: ['Galeria', 'Central'],
+  'event-5': ['Festival de', 'Rua'],
+  hotel: ['Hotel', 'Beira-Mar'],
+  terminal: ['Terminal', 'Sul'],
+  'event-6': ['Conselho', 'Comunitário'],
+};
+
+const TILE_IMAGES: Record<string, { src: string; alt: string }> = {
+  start: { src: '/images/praca-central-3d.webp', alt: 'Miniatura 3D da Praça Central' },
+  teatro: { src: '/images/teatro-municipal-3d.webp', alt: 'Miniatura 3D do Teatro Municipal' },
 };
 
 /** As 24 casas formam um circuito: topo, direita, baixo e esquerda. */
@@ -67,6 +100,10 @@ function accentFor(tile: CidadeTile): string {
   return 'bg-[#827294]';
 }
 
+function tileNameLines(tile: CidadeTile): string[] {
+  return TILE_LABELS[tile.id] ?? [tile.name];
+}
+
 function occupants(state: CidadeState, index: number): CidadePlayer[] {
   return state.players.filter((player) => player.position === index);
 }
@@ -100,7 +137,7 @@ function CityCenter({ state, compact }: { state: CidadeState; compact: boolean }
     <div className="relative col-start-2 col-span-5 row-start-2 row-span-5 min-h-0 overflow-hidden rounded-[1.35rem] border-[3px] border-[#b99d67] bg-[#f0dca9] text-center shadow-inner sm:rounded-[1.8rem]">
       {/* Arte 3D original gerada para o centro do tabuleiro. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/images/cidade-diorama-3d.png" alt="Maquete 3D de uma praça cercada por prédios" className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
+      <img src="/images/cidade-diorama-3d.webp" alt="Maquete 3D de uma praça cercada por prédios" className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
       <div className="pointer-events-none absolute inset-0 bg-[#f0dca9]/25" />
       <div className="relative flex h-full flex-col items-center justify-center gap-1 px-2 sm:gap-2">
         <div className="rounded-2xl border-2 border-[#b99d67] bg-[#fff3d5]/90 px-2 py-1 shadow-[0_4px_0_rgba(67,48,52,0.2)] sm:rounded-3xl sm:px-4 sm:py-2">
@@ -140,7 +177,10 @@ export function CityBoard({ state, compact = false }: { state: CidadeState; comp
                     <span>{tileSymbol(tile)}</span>
                     {tile.type === 'property' && <span>${tile.price}</span>}
                   </div>
-                  <div className="mt-1 break-words font-body text-[0.66rem] font-extrabold leading-[0.92] tracking-tight text-[#3d2d36] sm:text-[0.78rem]">{tile.name}</div>
+                  {TILE_IMAGES[tile.id] && <Image src={TILE_IMAGES[tile.id].src} alt={TILE_IMAGES[tile.id].alt} width={128} height={128} sizes="(min-width: 640px) 72px, 48px" className="mx-auto my-0.5 h-7 w-full object-contain sm:h-9" />}
+                  <div className="mt-1 overflow-hidden font-body text-[0.56rem] font-extrabold leading-[0.98] tracking-[-0.01em] text-[#3d2d36] sm:text-[0.68rem]">
+                    {tileNameLines(tile).map((line) => <span key={line} className="block whitespace-nowrap">{line}</span>)}
+                  </div>
                   {tile.type === 'tax' && <div className="mt-1 font-body font-bold text-[#c34e55]">−${tile.tax}</div>}
                   {tile.type === 'event' && <div className="mt-1 font-body font-bold text-[#397fba]">carta</div>}
                   {tile.type === 'property' && property && property.level > 0 && <div className="mt-1 flex gap-0.5" aria-label={`${property.level} melhoria${property.level > 1 ? 's' : ''}`}>
