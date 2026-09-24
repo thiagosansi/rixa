@@ -96,22 +96,18 @@ function CityCenter({ state, compact }: { state: CidadeState; compact: boolean }
   const current = state.players.find((player) => player.id === state.currentPlayerId);
   return (
     <div className="relative col-start-2 col-span-5 row-start-2 row-span-5 min-h-0 overflow-hidden rounded-[1.35rem] border-[3px] border-[#b99d67] bg-[#f0dca9] text-center shadow-inner sm:rounded-[1.8rem]">
-      <div className="pointer-events-none absolute inset-0 opacity-60" style={{ backgroundImage: 'linear-gradient(135deg, transparent 0 42%, rgba(77,142,126,.25) 42% 45%, transparent 45% 100%), linear-gradient(25deg, transparent 0 58%, rgba(208,160,82,.22) 58% 61%, transparent 61% 100%), radial-gradient(circle at 18% 22%, rgba(255,255,255,.8), transparent 28%)' }} />
-      <div className="pointer-events-none absolute -right-10 top-8 h-28 w-28 rounded-full border-[10px] border-[#6aa87f]/30 sm:h-44 sm:w-44" />
-      <div className="pointer-events-none absolute -bottom-10 -left-5 h-24 w-36 rotate-12 rounded-[45%] bg-[#74b48a]/25 sm:h-32 sm:w-52" />
+      {/* Arte 3D original gerada para o centro do tabuleiro. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/images/cidade-diorama-3d.png" alt="Maquete 3D de uma praça cercada por prédios" className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
+      <div className="pointer-events-none absolute inset-0 bg-[#f0dca9]/25" />
       <div className="relative flex h-full flex-col items-center justify-center gap-1 px-2 sm:gap-2">
-        <div className="flex items-end gap-0.5 text-[#315e57]" aria-hidden="true">
-          <span className="h-5 w-2 rounded-t-sm bg-[#d86c57] sm:h-8 sm:w-3" />
-          <span className="h-8 w-3 rounded-t-sm bg-[#4d8fb0] sm:h-12 sm:w-4" />
-          <span className="h-6 w-2 rounded-t-sm bg-[#e1a84f] sm:h-9 sm:w-3" />
-          <span className="h-10 w-3 rounded-t-sm bg-[#6c73b5] sm:h-14 sm:w-4" />
-          <span className="h-7 w-2 rounded-t-sm bg-[#d86c57] sm:h-10 sm:w-3" />
+        <div className="rounded-2xl border-2 border-[#b99d67] bg-[#fff3d5]/90 px-2 py-1 shadow-[0_4px_0_rgba(67,48,52,0.2)] sm:rounded-3xl sm:px-4 sm:py-2">
+          <div className="display text-[1.05rem] leading-none text-[#463550] sm:text-3xl">Cidade</div>
+          <div className="display -mt-0.5 text-[0.78rem] leading-none text-[#d2763f] sm:text-xl">em jogo</div>
+          <div className="mt-1 font-body text-[0.5rem] font-bold text-[#6c5a4e] sm:text-xs">negócios · sorte · estratégia</div>
         </div>
-        <div className="display text-[1.05rem] leading-none text-[#463550] sm:text-3xl">Cidade</div>
-        <div className="display -mt-0.5 text-[0.78rem] leading-none text-[#d2763f] sm:text-xl">em jogo</div>
-        <div className="font-body text-[0.55rem] font-semibold text-[#6c5a4e] sm:text-sm">negócios · sorte · estratégia</div>
         <CityDice roll={state.lastRoll} compact={compact} />
-        <div className="max-w-[92%] font-body text-[0.56rem] leading-tight text-[#463550] sm:text-sm">
+        <div className="max-w-[92%] rounded-full bg-[#fff3d5]/90 px-2 py-1 font-body text-[0.56rem] leading-tight text-[#463550] shadow-sm sm:px-3 sm:text-sm">
           {current ? <><strong>{current.name}</strong> joga agora</> : 'Adicione jogadores para ocupar a cidade.'}
         </div>
       </div>
