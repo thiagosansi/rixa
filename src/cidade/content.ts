@@ -42,5 +42,6 @@ export const CIDADE_EVENTS = [
 export const CIDADE_COLORS: CidadePlayerColor[] = ['coral', 'sky', 'lime', 'violet', 'orange', 'pink'];
 
 export const CIDADE_STARTING_MONEY = 1_200;
-export const CIDADE_MAX_TURNS = 30;
+export const CIDADE_MAX_TURNS = 12;
 export const CIDADE_START_BONUS = 200;
+export const CIDADE_REACTIONS = ['👏', '🔥', '😱', '💸', '😈', '🎉'] as const;

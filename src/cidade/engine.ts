@@ -10,6 +10,7 @@ import {
   CIDADE_COLORS,
   CIDADE_EVENTS,
   CIDADE_MAX_TURNS,
+  CIDADE_REACTIONS,
   CIDADE_START_BONUS,
   CIDADE_STARTING_MONEY,
 } from './content';
@@ -44,8 +45,11 @@ function rollFor(state: CidadeState): [number, number] {
   return [1 + (seed % 6), 1 + (Math.floor(seed / 7) % 6)];
 }
 
-function withMessage(state: CidadeState, lastAction: string, lastEvent = state.lastEvent): CidadeState {
-  return { ...state, lastAction, lastEvent, now: Date.now() };
+function withMessage(state: CidadeState, lastAction: string, lastEvent: string | null = null): CidadeState {
+  const now = Date.now();
+  const activityText = lastEvent ? `${lastAction} ${lastEvent}` : lastAction;
+  const activity = [...state.activity, { id: `${now}-${state.activity.length}`, text: activityText, at: now }].slice(-8);
+  return { ...state, lastAction, lastEvent, activity, now };
 }
 
 function propertyValue(state: CidadeState, propertyId: string): number {
@@ -56,6 +60,12 @@ function propertyValue(state: CidadeState, propertyId: string): number {
 
 export function cidadePlayerWealth(state: CidadeState, player: CidadePlayer): number {
   return player.money + player.propertyIds.reduce((sum, id) => sum + propertyValue(state, id), 0);
+}
+
+export function cidadePropertyUpgradeCost(state: CidadeState, propertyId: string): number {
+  const tile = state.board.find((item) => item.id === propertyId);
+  const property = state.properties[propertyId];
+  return Math.round((tile?.price ?? 0) * 0.5) * ((property?.level ?? 0) + 1);
 }
 
 function winnerFor(state: CidadeState): string | null {
@@ -81,6 +91,9 @@ export function createCidadeGame(code: string): CidadeState {
     lastAction: null,
     eventIndex: 0,
     winnerId: null,
+    activity: [],
+    lastMove: null,
+    lastReaction: null,
     now: Date.now(),
   };
 }
@@ -97,7 +110,7 @@ function finishTurn(state: CidadeState): CidadeState {
   const nextTurn = state.turnNumber + (completedRound ? 1 : 0);
   if (nextTurn >= state.maxTurns) {
     const finished = { ...state, phase: 'finished' as const, awaiting: null, currentPlayerId: null, turnNumber: nextTurn };
-    return { ...finished, winnerId: winnerFor(finished), lastAction: 'Partida encerrada: patrimônio final calculado.', now: Date.now() };
+    return withMessage({ ...finished, winnerId: winnerFor(finished) }, 'Partida encerrada: patrimônio final calculado.');
   }
   return withMessage(
     {
@@ -134,6 +147,15 @@ export function applyCidadePlayer(state: CidadeState, playerId: string, action: 
 
   if (action.type === 'heartbeat') {
     return playerById(state, playerId) ? { ...state, players: state.players.map((player) => player.id === playerId ? { ...player, lastSeen: now } : player), now } : state;
+  }
+
+  if (action.type === 'react') {
+    const player = playerById(state, playerId);
+    if (!player || !CIDADE_REACTIONS.includes(action.emoji)) return state;
+    return withMessage(
+      { ...state, lastReaction: { playerId, emoji: action.emoji, at: now } },
+      `${player.name} reagiu ${action.emoji}`,
+    );
   }
 
   if (state.phase !== 'playing' || state.currentPlayerId !== playerId) return state;
@@ -185,7 +207,7 @@ export function applyCidadePlayer(state: CidadeState, playerId: string, action: 
     }
 
     return withMessage(
-      { ...state, players: nextPlayers, properties: nextProperties, awaiting: nextAwaiting, lastRoll: roll, eventIndex: tile.type === 'event' ? state.eventIndex + 1 : state.eventIndex },
+      { ...state, players: nextPlayers, properties: nextProperties, awaiting: nextAwaiting, lastRoll: roll, lastMove: { playerId, from: current.position, to: nextPosition, steps: spaces }, eventIndex: tile.type === 'event' ? state.eventIndex + 1 : state.eventIndex },
       `${current.name} lançou ${roll[0]} + ${roll[1]} e caiu em ${tile.name}.`,
       lastEvent,
     );
@@ -199,6 +221,18 @@ export function applyCidadePlayer(state: CidadeState, playerId: string, action: 
     const price = tile.price ?? 0;
     const players = state.players.map((player) => player.id === playerId ? { ...player, money: player.money - price, propertyIds: [...player.propertyIds, tile.id] } : player);
     return withMessage({ ...state, players, properties: { ...state.properties, [tile.id]: { ...property, ownerId: playerId } }, awaiting: 'end-turn' }, `${current.name} comprou ${tile.name} por ${price}.`);
+  }
+
+  if (action.type === 'upgrade-property') {
+    const tile = state.board[current.position];
+    const property = state.properties[tile.id];
+    const cost = cidadePropertyUpgradeCost(state, tile.id);
+    if (tile.type !== 'property' || !property || property.ownerId !== playerId || property.level >= 2 || current.money < cost) return state;
+    const players = state.players.map((player) => player.id === playerId ? { ...player, money: player.money - cost } : player);
+    return withMessage(
+      { ...state, players, properties: { ...state.properties, [tile.id]: { ...property, level: property.level + 1 } }, awaiting: 'end-turn' },
+      `${current.name} melhorou ${tile.name} por ${cost}.`,
+    );
   }
 
   if (action.type === 'end-turn') {

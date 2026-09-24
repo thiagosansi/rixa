@@ -229,6 +229,7 @@ export type HostAction =
 
 export type CidadeTileType = 'start' | 'property' | 'event' | 'tax' | 'jail' | 'go-to-jail' | 'rest';
 export type CidadePlayerColor = 'coral' | 'sky' | 'lime' | 'violet' | 'orange' | 'pink';
+export type CidadeReaction = '👏' | '🔥' | '😱' | '💸' | '😈' | '🎉';
 
 export type CidadeTile = {
   id: string;
@@ -255,6 +256,19 @@ export type CidadePlayer = {
   lastSeen: number;
 };
 
+export type CidadeActivity = {
+  id: string;
+  text: string;
+  at: number;
+};
+
+export type CidadeMove = {
+  playerId: string;
+  from: number;
+  to: number;
+  steps: number;
+};
+
 export type CidadeState = {
   code: string;
   phase: 'lobby' | 'playing' | 'finished';
@@ -270,6 +284,9 @@ export type CidadeState = {
   lastAction: string | null;
   eventIndex: number;
   winnerId: string | null;
+  activity: CidadeActivity[];
+  lastMove: CidadeMove | null;
+  lastReaction: { playerId: string; emoji: CidadeReaction; at: number } | null;
   now: number;
 };
 
@@ -278,6 +295,8 @@ export type CidadePlayerAction =
   | { type: 'heartbeat' }
   | { type: 'roll-dice' }
   | { type: 'buy-property' }
+  | { type: 'upgrade-property' }
+  | { type: 'react'; emoji: CidadeReaction }
   | { type: 'end-turn' };
 
 export type CidadeHostAction =

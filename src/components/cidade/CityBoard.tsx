@@ -1,7 +1,8 @@
 'use client';
 
-import type { CidadePlayer, CidadeState, CidadeTile } from '@/game/types';
+import type { CidadePlayer, CidadeReaction, CidadeState, CidadeTile } from '@/game/types';
 import { cidadePlayerWealth } from '@/cidade/engine';
+import { CIDADE_REACTIONS } from '@/cidade/content';
 
 const COLOR_CLASSES: Record<CidadePlayer['color'], string> = {
   coral: 'bg-team-red',
@@ -94,6 +95,7 @@ export function CityDice({ roll, compact = false }: { roll: [number, number] | n
 
 function CityCenter({ state, compact }: { state: CidadeState; compact: boolean }) {
   const current = state.players.find((player) => player.id === state.currentPlayerId);
+  const mover = state.lastMove ? state.players.find((player) => player.id === state.lastMove?.playerId) : null;
   return (
     <div className="relative col-start-2 col-span-5 row-start-2 row-span-5 min-h-0 overflow-hidden rounded-[1.35rem] border-[3px] border-[#b99d67] bg-[#f0dca9] text-center shadow-inner sm:rounded-[1.8rem]">
       {/* Arte 3D original gerada para o centro do tabuleiro. */}
@@ -108,7 +110,7 @@ function CityCenter({ state, compact }: { state: CidadeState; compact: boolean }
         </div>
         <CityDice roll={state.lastRoll} compact={compact} />
         <div className="max-w-[92%] rounded-full bg-[#fff3d5]/90 px-2 py-1 font-body text-[0.56rem] leading-tight text-[#463550] shadow-sm sm:px-3 sm:text-sm">
-          {current ? <><strong>{current.name}</strong> joga agora</> : 'Adicione jogadores para ocupar a cidade.'}
+          {mover && state.lastMove ? <><strong>{mover.name}</strong> avançou {state.lastMove.steps} casas</> : current ? <><strong>{current.name}</strong> joga agora</> : 'Adicione jogadores para ocupar a cidade.'}
         </div>
       </div>
     </div>
@@ -141,13 +143,17 @@ export function CityBoard({ state, compact = false }: { state: CidadeState; comp
                   <div className="mt-1 break-words font-body text-[0.66rem] font-extrabold leading-[0.92] tracking-tight text-[#3d2d36] sm:text-[0.78rem]">{tile.name}</div>
                   {tile.type === 'tax' && <div className="mt-1 font-body font-bold text-[#c34e55]">−${tile.tax}</div>}
                   {tile.type === 'event' && <div className="mt-1 font-body font-bold text-[#397fba]">carta</div>}
+                  {tile.type === 'property' && property && property.level > 0 && <div className="mt-1 flex gap-0.5" aria-label={`${property.level} melhoria${property.level > 1 ? 's' : ''}`}>
+                    {Array.from({ length: property.level }, (_, level) => <span key={level} className="h-2 w-2 rounded-sm bg-[#d2763f] shadow-sm sm:h-2.5 sm:w-2.5" />)}
+                  </div>}
                   {owner && <div className="mt-1 truncate font-body font-bold text-[#b2762d]">{owner.name}</div>}
                 </div>
                 {players.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-1" aria-label={`Jogadores em ${tile.name}`}>
                     {players.map((player) => (
-                      <span key={player.id} title={player.name} className={`flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/80 text-[0.58rem] font-bold text-white shadow-sm sm:h-7 sm:w-7 sm:text-xs ${COLOR_CLASSES[player.color]}`}>
+                      <span key={player.id} title={player.name} className={`relative flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/80 text-[0.58rem] font-bold text-white shadow-sm sm:h-7 sm:w-7 sm:text-xs ${state.lastMove?.playerId === player.id ? 'animate-bounce ring-2 ring-white' : ''} ${COLOR_CLASSES[player.color]}`}>
                         {player.name.slice(0, 1).toUpperCase()}
+                        {state.lastReaction?.playerId === player.id && <span className="absolute -right-2 -top-4 text-sm drop-shadow sm:text-lg">{state.lastReaction.emoji}</span>}
                       </span>
                     ))}
                   </div>
@@ -178,5 +184,28 @@ export function CityScoreboard({ state }: { state: CidadeState }) {
         </div>
       ))}
     </div>
+  );
+}
+
+export function CityReactions({ onReact }: { onReact: (emoji: CidadeReaction) => void }) {
+  return (
+    <section className="rounded-2xl border-2 border-line bg-surface px-3 py-3">
+      <div className="display text-center text-xs tracking-[0.15em] text-muted">torcida da cidade</div>
+      <div className="mt-2 flex justify-center gap-2">
+        {CIDADE_REACTIONS.map((emoji) => <button key={emoji} type="button" onClick={() => onReact(emoji)} className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-line bg-surface-2 text-xl transition hover:-translate-y-0.5 hover:border-gold" aria-label={`Reagir ${emoji}`}>{emoji}</button>)}
+      </div>
+    </section>
+  );
+}
+
+export function CityActivity({ state }: { state: CidadeState }) {
+  return (
+    <section className="rounded-2xl border-2 border-line bg-surface px-3 py-3">
+      <div className="display text-xs tracking-[0.15em] text-muted">cidade ao vivo</div>
+      <div className="mt-2 flex flex-col gap-1.5">
+        {state.activity.length === 0 && <p className="text-sm text-muted">As jogadas e reações aparecerão aqui.</p>}
+        {state.activity.slice(-5).reverse().map((entry) => <p key={entry.id} className="font-body text-sm leading-snug text-ink"><span className="mr-1 text-gold">•</span>{entry.text}</p>)}
+      </div>
+    </section>
   );
 }

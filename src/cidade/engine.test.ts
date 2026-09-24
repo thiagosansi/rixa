@@ -34,6 +34,7 @@ describe('Cidade em Jogo', () => {
     let state = applyCidadeHost(joined(), { type: 'start' });
     state = applyCidadePlayer(state, 'p1', { type: 'roll-dice' });
     assert.ok(state.lastRoll);
+    assert.equal(state.lastMove?.playerId, 'p1');
     assert.notEqual(state.players[0].position, 0);
     assert.ok(state.awaiting === 'buy-or-end' || state.awaiting === 'end-turn');
 
@@ -47,6 +48,29 @@ describe('Cidade em Jogo', () => {
     assert.equal(state.properties.aurora.ownerId, 'p1');
     assert.ok(state.players[0].propertyIds.includes('aurora'));
     assert.equal(state.awaiting, 'end-turn');
+  });
+
+  it('permite construir no imóvel e mantém uma linha do tempo pública', () => {
+    let state = applyCidadeHost(joined(), { type: 'start' });
+    state = {
+      ...state,
+      awaiting: 'end-turn',
+      currentPlayerId: 'p1',
+      players: state.players.map((player) => player.id === 'p1' ? { ...player, position: 1, propertyIds: ['aurora'] } : player),
+      properties: { ...state.properties, aurora: { ownerId: 'p1', level: 0 } },
+    };
+    const before = state.players[0].money;
+    state = applyCidadePlayer(state, 'p1', { type: 'upgrade-property' });
+    assert.equal(state.properties.aurora.level, 1);
+    assert.ok(state.players[0].money < before);
+    assert.match(state.activity.at(-1)?.text ?? '', /melhorou/);
+  });
+
+  it('distribui reações para a sala sem alterar o turno', () => {
+    const state = applyCidadePlayer(joined(), 'p1', { type: 'react', emoji: '🔥' });
+    assert.deepEqual(state.lastReaction?.emoji, '🔥');
+    assert.equal(state.currentPlayerId, null);
+    assert.match(state.activity.at(-1)?.text ?? '', /reagiu/);
   });
 
   it('passa o turno para o próximo jogador', () => {

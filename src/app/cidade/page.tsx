@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CidadePlayerAction, CidadeState, Envelope } from '@/game/types';
-import { applyCidadeHost, applyCidadePlayer, canStartCidade, createCidadeGame, cidadePlayerWealth } from '@/cidade/engine';
+import { applyCidadeHost, applyCidadePlayer, canStartCidade, createCidadeGame, cidadePlayerWealth, cidadePropertyUpgradeCost } from '@/cidade/engine';
 import { makeRoomCode } from '@/lib/id';
 import { buildJoinUrl, isLocalHostname, pickJoinOrigin } from '@/lib/join-url';
 import { useRoomChannel } from '@/lib/channel';
 import { Button } from '@/components/ui';
-import { CityBoard, CityDice, CityScoreboard } from '@/components/cidade/CityBoard';
+import { CityActivity, CityBoard, CityDice, CityReactions, CityScoreboard } from '@/components/cidade/CityBoard';
 import { CityLobby } from '@/components/cidade/CityLobby';
 
 export default function CidadeHostPage() {
@@ -93,6 +93,11 @@ export default function CidadeHostPage() {
   }
 
   const winner = state.winnerId ? state.players.find((player) => player.id === state.winnerId) : null;
+  const currentPlayer = state.players.find((player) => player.id === state.currentPlayerId) ?? null;
+  const currentTile = currentPlayer ? state.board[currentPlayer.position] : null;
+  const currentProperty = currentTile ? state.properties[currentTile.id] : null;
+  const upgradeCost = currentTile ? cidadePropertyUpgradeCost(state, currentTile.id) : 0;
+  const canUpgrade = state.phase === 'playing' && state.awaiting === 'end-turn' && !!currentPlayer && currentTile?.type === 'property' && currentProperty?.ownerId === currentPlayer.id && (currentProperty.level ?? 0) < 2 && currentPlayer.money >= upgradeCost;
 
   return (
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-3xl flex-col gap-4 px-4 py-4 sm:px-6">
@@ -118,6 +123,7 @@ export default function CidadeHostPage() {
             <div className="rounded-xl border-2 border-gold/50 bg-gold/10 px-3 py-2 text-center text-sm text-ink">sala {state.code}</div>
           </div>
           <CityBoard state={state} />
+          <CityActivity state={state} />
           <section className="rounded-3xl border-2 border-gold/50 bg-gold/10 px-4 py-4">
             <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:text-left">
               <div>
@@ -133,9 +139,13 @@ export default function CidadeHostPage() {
                 <Button size="lg" fullWidth onClick={() => hostTurn({ type: 'buy-property' })}>Comprar imóvel</Button>
                 <Button size="lg" variant="ghost" fullWidth onClick={() => hostTurn({ type: 'end-turn' })}>Passar</Button>
               </>}
-              {state.awaiting === 'end-turn' && <Button size="xl" fullWidth onClick={() => hostTurn({ type: 'end-turn' })}>Encerrar turno</Button>}
+              {state.awaiting === 'end-turn' && <div className="grid w-full gap-2 sm:grid-cols-2">
+                <Button size="xl" fullWidth onClick={() => hostTurn({ type: 'end-turn' })}>Encerrar turno</Button>
+                {canUpgrade && <Button size="lg" variant="gold" fullWidth onClick={() => hostTurn({ type: 'upgrade-property' })}>Construir · ${upgradeCost}</Button>}
+              </div>}
             </div>
           </section>
+          <CityReactions onReact={(emoji) => hostTurn({ type: 'react', emoji })} />
           <CityScoreboard state={state} />
           <div className="rounded-2xl border-2 border-line bg-surface px-4 py-3 text-center text-lg text-ink">
             {state.lastRoll && <div className="display text-2xl text-gold">último dado: {state.lastRoll[0]} + {state.lastRoll[1]}</div>}

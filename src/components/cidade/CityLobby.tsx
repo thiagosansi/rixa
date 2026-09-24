@@ -40,7 +40,7 @@ export function CityLobby({ state, joinUrl, onStart, onAddPlayer }: { state: Cid
         <p className="mt-2 text-center text-xs text-muted">Ou compartilhe o código para cada pessoa entrar pelo próprio dispositivo.</p>
       </div>
       <CityScoreboard state={state} />
-      <p className="text-center text-muted">{state.players.length}/6 jogadores · mínimo de 2 para começar · 30 voltas na cidade</p>
+      <p className="text-center text-muted">{state.players.length}/6 jogadores · mínimo de 2 para começar · 12 voltas na cidade</p>
       <Button size="xl" fullWidth disabled={!ready} onClick={onStart}>Começar partida</Button>
     </section>
   );

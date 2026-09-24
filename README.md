@@ -40,8 +40,9 @@ Na página inicial, escolha **Cidade em Jogo** para abrir `/cidade`. É um modo 
 - Abra `/cidade` no aparelho do anfitrião.
 - Cada pessoa entra em `/cidade/jogar` com o código da sala.
 - Jogue pelo celular, tablet ou computador: lance dados, compre imóveis, receba aluguel e responda às cartas de evento.
+- Construa melhorias nos imóveis, acompanhe a linha do tempo da cidade e reaja às jogadas de quem está longe.
 - Se todos estiverem no mesmo computador, adicione 2 a 6 nomes no lobby e use o modo **pass-and-play**: o botão do turno fica na tela do anfitrião.
-- A partida termina depois de 30 voltas; vence quem tiver o maior patrimônio.
+- A partida termina depois de 12 voltas; vence quem tiver o maior patrimônio.
 
 O tabuleiro, os bairros e as cartas são conteúdos originais do projeto.
 
