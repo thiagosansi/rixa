@@ -88,7 +88,7 @@ export default function CidadePlayerPage() {
   if (!room) {
     return (
       <main className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col justify-center gap-6 px-5 py-8 thumb-safe">
-        <div className="text-center"><div className="display text-6xl text-gold">CIDADE</div><p className="mt-2 text-muted">Entre na partida do anfitrião.</p></div>
+        <div className="text-center"><div className="display text-6xl text-gold">CIDADE</div><p className="mt-2 text-muted">Entre pelo celular, tablet ou computador.</p></div>
         <form className="flex flex-col gap-4" onSubmit={(event) => { event.preventDefault(); enter(); }}>
           <label className="flex flex-col gap-2"><span className="display text-sm text-muted">código da sala</span><input value={codeInput} onChange={(event) => setCodeInput(normalizeRoomCode(event.target.value))} maxLength={4} placeholder="ABCD" className="display min-h-[72px] rounded-2xl border-2 border-line bg-surface px-5 text-center text-5xl tracking-[0.3em] text-ink outline-none focus:border-gold" /></label>
           <label className="flex flex-col gap-2"><span className="display text-sm text-muted">seu nome</span><input value={nameInput} onChange={(event) => setNameInput(event.target.value.slice(0, 16))} placeholder="como te chamam" className="min-h-[64px] rounded-2xl border-2 border-line bg-surface px-5 text-2xl text-ink outline-none focus:border-gold" /></label>
@@ -104,7 +104,7 @@ export default function CidadePlayerPage() {
   const canEnd = current && state?.phase === 'playing' && (state.awaiting === 'end-turn' || state.awaiting === 'buy-or-end');
 
   return (
-    <main className="mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col gap-4 px-4 py-4">
+    <main className="mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col gap-4 px-4 py-4 lg:max-w-5xl">
       <header className="flex items-center justify-between gap-3 border-b-2 border-line pb-3">
         <div><div className="display text-3xl text-gold">CIDADE</div><div className="text-sm text-muted">{me?.name ?? nameInput} · sala {room}</div></div>
         <span className={`h-3 w-3 rounded-full ${connected ? 'bg-[#3ddc97]' : 'animate-pulse-soft bg-team-red'}`} aria-label={connected ? 'conectado' : 'desconectado'} />
@@ -127,7 +127,7 @@ export default function CidadePlayerPage() {
           {current && canRoll && <Button size="xl" fullWidth onClick={() => act({ type: 'roll-dice' })}>Lançar dados</Button>}
           {current && canBuy && <div className="grid grid-cols-2 gap-2"><Button size="lg" onClick={() => act({ type: 'buy-property' })}>Comprar</Button><Button size="lg" variant="ghost" onClick={() => act({ type: 'end-turn' })}>Passar</Button></div>}
           {current && canEnd && !canBuy && <Button size="xl" fullWidth onClick={() => act({ type: 'end-turn' })}>Encerrar turno</Button>}
-          {!current && <p className="text-center text-lg text-muted">Aguarde sua vez. O dado e as decisões ficam no celular de quem está jogando.</p>}
+          {!current && <p className="text-center text-lg text-muted">Aguarde sua vez. O dado e as decisões ficam no dispositivo de quem está jogando.</p>}
           <CityScoreboard state={state} />
         </section>
       )}

@@ -5,7 +5,7 @@ import QRCode from 'qrcode';
 
 export type CodeDisplayProps = {
   code: string;
-  /** URL completa pro celular, ex.: http://192.168.0.10:3000/jogar?code=ABCD */
+  /** URL completa para entrar na partida, ex.: http://192.168.0.10:3000/jogar?code=ABCD */
   joinUrl?: string | null;
   className?: string;
 };
@@ -66,7 +66,7 @@ export function CodeDisplay({ code, joinUrl, className = '' }: CodeDisplayProps)
           <div className="display text-center text-xl text-ink md:text-3xl">
             {pretty}
             <div className="mt-1 font-body text-xs normal-case tracking-normal text-muted">
-              abra no celular e digite o código
+              abra no seu dispositivo e digite o código
             </div>
           </div>
         )}

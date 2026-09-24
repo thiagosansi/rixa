@@ -183,10 +183,10 @@ export default function JogarPage() {
         </div>
       )}
 
-      <main className="player-main mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pt-4">
+      <main className="player-main mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pt-4 lg:max-w-2xl">
         {!game && (
           <WaitingCard emoji="📡" title={`Procurando a sala ${room}`}>
-            Confira se a mesa está aberta e se o celular está no mesmo WiFi.
+            Confira se a mesa está aberta e se o dispositivo está na mesma rede.
             <button
               type="button"
               className="mt-4 block min-h-14 w-full rounded-2xl border-2 border-line px-4 text-lg text-ink"
@@ -243,8 +243,9 @@ function JoinForm({
 }) {
   const ready = code.length === 4 && name.trim().length > 0;
   return (
-    <main className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col justify-center gap-6 px-5 py-8 thumb-safe">
+    <main className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col justify-center gap-6 px-5 py-8 thumb-safe lg:max-w-lg">
       <h1 className="display stroke-title text-center text-6xl text-gold">RIXA</h1>
+      <p className="text-center text-lg text-muted">Jogue nesta tela pelo celular, tablet ou computador.</p>
 
       <form
         className="flex flex-col gap-4"
@@ -287,7 +288,7 @@ function JoinForm({
       </form>
 
       <p className="text-center text-sm text-muted">
-        Peça o código de 4 letras para quem abriu a mesa.
+        Peça o código de 4 letras para quem abriu a mesa. Cada participante pode usar seu próprio dispositivo.
       </p>
     </main>
   );

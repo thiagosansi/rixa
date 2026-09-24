@@ -313,7 +313,7 @@ export function TelefoneRound({ game, me, team, secret, act, round }: RoundProps
   if (position < 0) {
     return (
       <WaitingCard emoji="👀" title="Aguarde a mesa">
-        Você não está numa corrente nesta rodada — acompanhe a revelação nos celulares.
+        Você não está numa corrente nesta rodada — acompanhe a revelação nas telas.
       </WaitingCard>
     );
   }
@@ -430,7 +430,7 @@ export function TelefoneRound({ game, me, team, secret, act, round }: RoundProps
     const starter = chain ? playerName(game, chain.starterId) : '';
     return (
       <WaitingCard emoji="📱" title="Aguarde a mesa">
-        Revelando as correntes nos celulares.
+        Revelando as correntes nas telas.
         <br />
         <span className="text-ink" data-testid="telefone-reveal-progress">
           Corrente {round.revealChain + 1} de {round.chains.length}

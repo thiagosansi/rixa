@@ -23,17 +23,17 @@ function myRoleText(game: GameState, me: Player, team: TeamId): string {
     const order = first === team ? 'Seu time começa.' : 'O outro time começa; o seu vai depois.';
     const rivalJob = kind === 'tabu' ? ' Na vez deles você é árbitro: botão PEGOU! na mão.' : '';
     if (performer?.id === me.id) {
-      return `VOCÊ ${verb} pelo seu time${kind === 'mimica' ? ' — a palavra aparece no seu celular' : ' — em voz alta'}. ${order}${rivalJob}`;
+      return `VOCÊ ${verb} pelo seu time${kind === 'mimica' ? ' — a palavra aparece na sua tela' : ' — em voz alta'}. ${order}${rivalJob}`;
     }
     return `${performer?.name ?? 'Alguém'} ${verb} pelo seu time; você adivinha digitando aqui. ${order}${rivalJob}`;
   }
   if (kind === 'mentiroso') return 'Você escreve uma mentira convincente e depois vota tentando achar a verdade.';
   if (kind === 'leilao') return 'Você dá o lance do seu time. Quem prometer mais, lista; o outro time julga.';
   if (kind === 'telefone') {
-    return 'Você começa uma frase no celular. Depois recebe a frase de outra pessoa pra virar emojis, e emojis pra traduzir. No fim, vote na corrente mais engraçada.';
+    return 'Você começa uma frase na sua tela. Depois recebe a frase de outra pessoa pra virar emojis, e emojis pra traduzir. No fim, vote na corrente mais engraçada.';
   }
   if (kind === 'detetive') return 'Você recebe um personagem e uma pista secreta. Converse, investigue e vote em quem parece responsável.';
-  return 'Todo mundo responde no próprio celular. Rapidez dá bônus e tudo vale 3x.';
+  return 'Todo mundo responde na própria tela. Rapidez dá bônus e tudo vale 3x.';
 }
 
 export function RoundIntroScreen({ game, me, team }: { game: GameState; me: Player; team: TeamId }) {
@@ -64,7 +64,7 @@ export function RoundIntroScreen({ game, me, team }: { game: GameState; me: Play
         ))}
       </ul>
 
-      <p className="text-center text-lg text-muted">Aguarde o anfitrião apertar “Bora”. A rodada aparece no seu celular.</p>
+      <p className="text-center text-lg text-muted">Aguarde o anfitrião apertar “Bora”. A rodada aparece na sua tela.</p>
     </section>
   );
 }

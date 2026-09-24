@@ -51,7 +51,7 @@ export function DetetiveRound({ game, me, secret, act, round }: RoundProps & { r
     </div>
   ) : (
     <WaitingCard emoji="🔒" title="Recebendo seu personagem">
-      Vire o celular só para você. Sua pista chega em um envelope privado.
+      Olhe a tela só você. Sua pista chega em um envelope privado.
     </WaitingCard>
   );
 

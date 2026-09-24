@@ -8,7 +8,7 @@ export default function Home() {
       <header className="text-center">
         <h1 className="display stroke-title text-7xl text-gold md:text-[10rem]">JOGOS</h1>
         <p className="mt-3 text-lg text-muted md:text-2xl">
-          Escolha uma experiência para jogar em casa. A TV é opcional.
+          Escolha uma experiência para jogar em casa. A TV é opcional e cada pessoa pode usar celular, tablet ou computador.
         </p>
       </header>
 
@@ -35,13 +35,13 @@ export default function Home() {
           href="/jogar"
           className="display flex min-h-[96px] items-center justify-center rounded-3xl border-2 border-line bg-surface-2 px-6 text-center text-3xl text-ink transition hover:border-muted active:translate-y-[4px] md:text-5xl"
         >
-          Entrar na RIXA pelo celular
+          Jogar RIXA como participante
         </Link>
         <Link
           href="/cidade/jogar"
           className="display flex min-h-16 items-center justify-center rounded-3xl border-2 border-line bg-surface-2 px-6 text-center text-xl text-ink transition hover:border-muted active:translate-y-[4px] md:text-3xl"
         >
-          Entrar na Cidade pelo celular
+          Jogar Cidade como participante
         </Link>
       </nav>
 

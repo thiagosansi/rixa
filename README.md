@@ -1,12 +1,12 @@
 # RIXA
 
 Jogo de festa para a sala de casa: um **torneio de 7 rodadas** entre dois times (Vermelho x Azul).
-A TV é opcional: a mesa pode abrir o jogo em um celular, tablet, notebook ou televisão, e cada pessoa joga pelo próprio celular.
+A TV é opcional: a mesa pode abrir o jogo em um celular, tablet, notebook ou televisão, e cada pessoa joga pelo próprio dispositivo.
 São **2 baralhos**: _Família_ e _Sem filtro_ — escolha no lobby.
 
 ## As 7 rodadas
 
-1. **Mímica** — um jogador do time vê a palavra no celular e faz mímica; o resto do time digita os palpites (150 por acerto).
+1. **Mímica** — um jogador do time vê a palavra na própria tela e faz mímica; o resto do time digita os palpites (150 por acerto).
 2. **Tabu de Boteco** — explique a palavra sem dizer as proibidas; o time adversário é o juiz (100 por acerto, -50 por deslize).
 3. **Mentiroso** — todo mundo inventa uma resposta falsa e depois vota; enganar adversários e achar a verdade dão pontos.
 4. **Leilão** — lance secreto de quantos itens de uma categoria o time consegue listar; o maior lance encara o desafio.
@@ -28,10 +28,10 @@ npm run build && npm start       # modo produção
 ```
 
 1. Abra `http://localhost:3000/mesa` no celular, tablet ou notebook do anfitrião. Use `/tv` se quiser uma tela grande.
-2. Cada pessoa digita o endereço + código da sala, ou usa o **QR** quando houver uma tela disponível.
+2. Cada pessoa abre `/jogar` em seu celular, tablet ou computador e digita o endereço + código da sala, ou usa o **QR** quando houver uma tela disponível.
 3. Todo mundo precisa estar no **mesmo WiFi** da máquina que roda o jogo.
 
-O modo `/mesa` não depende de nenhuma TV: as informações públicas aparecem nos celulares, enquanto personagens, pistas e outras informações secretas chegam apenas ao jogador correto.
+O modo `/mesa` não depende de nenhuma TV: as informações públicas aparecem nas telas, enquanto personagens, pistas e outras informações secretas chegam apenas ao jogador correto.
 
 ## Cidade em Jogo
 
@@ -39,7 +39,7 @@ Na página inicial, escolha **Cidade em Jogo** para abrir `/cidade`. É um modo 
 
 - Abra `/cidade` no aparelho do anfitrião.
 - Cada pessoa entra em `/cidade/jogar` com o código da sala.
-- Jogue pelo celular: lance dados, compre imóveis, receba aluguel e responda às cartas de evento.
+- Jogue pelo celular, tablet ou computador: lance dados, compre imóveis, receba aluguel e responda às cartas de evento.
 - A partida termina depois de 30 voltas; vence quem tiver o maior patrimônio.
 
 O tabuleiro, os bairros e as cartas são conteúdos originais do projeto.

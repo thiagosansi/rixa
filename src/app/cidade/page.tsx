@@ -110,7 +110,7 @@ export default function CidadeHostPage() {
           <CityScoreboard state={state} />
           <div className="rounded-2xl border-2 border-line bg-surface px-4 py-3 text-center text-lg text-ink">
             {state.lastRoll && <div className="display text-2xl text-gold">último dado: {state.lastRoll[0]} + {state.lastRoll[1]}</div>}
-            <p className="mt-1">{state.lastEvent ?? state.lastAction ?? 'Cada jogador joga pelo próprio celular.'}</p>
+            <p className="mt-1">{state.lastEvent ?? state.lastAction ?? 'Cada jogador joga pelo próprio dispositivo.'}</p>
           </div>
         </section>
       )}

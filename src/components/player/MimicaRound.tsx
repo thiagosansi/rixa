@@ -73,7 +73,7 @@ export function MimicaRound({ game, me, team, secret, act, round }: RoundProps &
     return (
       <section className="flex flex-col gap-3" data-testid="mimica-performer">
         <p className="display rounded-xl bg-team-red/15 px-3 py-2 text-center text-sm tracking-[0.1em] text-team-red">
-          🙈 vire o celular pra você — ninguém pode ver
+          🙈 vire a tela pra você — ninguém pode ver
         </p>
 
         <div className="rounded-3xl border-2 border-gold/60 bg-surface-2 px-4 py-3 text-center">
